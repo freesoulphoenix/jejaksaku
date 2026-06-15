@@ -10,13 +10,17 @@ const emptyCategoryForm = {
   parent_category_id: ''
 };
 
-export default function SettingsPage({ onLogout, user }) {
+export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const { language, setLanguage, supportedLanguages } = useLanguage();
   const [categories, setCategories] = useState([]);
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
   const [categoryMessage, setCategoryMessage] = useState('');
   const [categoryError, setCategoryError] = useState('');
   const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const parentCategories = useMemo(() => (
     getParentCategoryOptions(categories, categoryForm.type)
@@ -111,6 +115,25 @@ export default function SettingsPage({ onLogout, user }) {
     }
   }
 
+  async function handleDeleteAccount(event) {
+    event.preventDefault();
+    setDeleteError('');
+
+    if (deleteConfirmation !== 'CONFIRM DELETE') {
+      setDeleteError('Type CONFIRM DELETE to confirm account deletion.');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+
+    try {
+      await onDeleteAccount();
+    } catch (error) {
+      setDeleteError(error.message || 'Unable to delete account.');
+      setIsDeletingAccount(false);
+    }
+  }
+
   return (
     <div className="page-stack">
       <section className="page-heading">
@@ -126,6 +149,59 @@ export default function SettingsPage({ onLogout, user }) {
           <p className="muted-copy">{user?.email}</p>
           <div className="button-row">
             <button className="secondary-button" onClick={onLogout}>Logout</button>
+          </div>
+
+          <div className="danger-zone">
+            <div>
+              <h3>Delete Account</h3>
+              <p>
+                This permanently removes your Dompet Daily account, profile, accounts, categories,
+                transactions, due reminders, receipts, statement imports, and uploaded files.
+              </p>
+            </div>
+
+            {!deleteAccountOpen ? (
+              <button className="secondary-button danger-button" onClick={() => setDeleteAccountOpen(true)} type="button">
+                Delete Account
+              </button>
+            ) : (
+              <form className="delete-account-form" onSubmit={handleDeleteAccount}>
+                <p className="form-message error">
+                  Are you sure? This cannot be undone. Type <strong>CONFIRM DELETE</strong> to continue.
+                </p>
+                <label className="field-group">
+                  Confirmation
+                  <input
+                    autoComplete="off"
+                    onChange={(event) => setDeleteConfirmation(event.target.value)}
+                    placeholder="CONFIRM DELETE"
+                    value={deleteConfirmation}
+                  />
+                </label>
+                {deleteError && <p className="form-message error">{deleteError}</p>}
+                <div className="button-row">
+                  <button
+                    className="primary-button danger-button"
+                    disabled={isDeletingAccount || deleteConfirmation !== 'CONFIRM DELETE'}
+                    type="submit"
+                  >
+                    {isDeletingAccount ? 'Deleting...' : 'Permanently Delete Account'}
+                  </button>
+                  <button
+                    className="secondary-button"
+                    disabled={isDeletingAccount}
+                    onClick={() => {
+                      setDeleteAccountOpen(false);
+                      setDeleteConfirmation('');
+                      setDeleteError('');
+                    }}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </article>
 

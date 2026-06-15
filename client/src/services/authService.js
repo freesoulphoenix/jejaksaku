@@ -74,6 +74,22 @@ export async function logoutUser() {
   clearCachedUserProfile();
 }
 
+export async function deleteCurrentAccount() {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke('delete-account', {
+    method: 'POST'
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  await client.auth.signOut().catch(() => {});
+
+  clearCachedUserProfile();
+  return data;
+}
+
 export async function getCurrentUser() {
   const client = requireSupabase();
   const { data, error } = await client.auth.getUser();

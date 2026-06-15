@@ -107,6 +107,13 @@ textarea:focus {
   background: var(--color-primary-soft);
 }
 
+.primary-button.danger-button,
+.secondary-button.danger-button {
+  color: #ffffff;
+  background: var(--color-danger);
+  box-shadow: 0 12px 24px rgba(239, 68, 68, 0.16);
+}
+
 .secondary-button.small {
   padding: 7px 10px;
   font-size: 0.78rem;
@@ -188,6 +195,32 @@ textarea:focus {
 
 .settings-panel-wide {
   grid-column: 1 / -1;
+}
+
+.danger-zone {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #fee2e2;
+}
+
+.danger-zone h3 {
+  margin: 0 0 6px;
+  color: var(--color-danger);
+  font-size: 1rem;
+}
+
+.danger-zone p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.delete-account-form {
+  display: grid;
+  gap: 12px;
 }
 
 .category-manager-form {

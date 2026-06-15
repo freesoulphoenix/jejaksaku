@@ -115,7 +115,7 @@ function OfflineNotice() {
 }
 
 function ProtectedApp() {
-  const { loading, user, logout } = useAuth();
+  const { deleteAccount, loading, user, logout } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [authPage, setAuthPage] = useState('login');
@@ -222,6 +222,7 @@ function ProtectedApp() {
         transactions={transactions}
         onNavigate={setActivePage}
         onAddTransaction={() => setIsAddOpen(true)}
+        onDeleteAccount={deleteAccount}
         onLogout={logout}
         pendingReceiptFile={activePage === 'receipts' ? pendingReceiptFile : null}
         onReceiptFileConsumed={handleReceiptFileConsumed}
