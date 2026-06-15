@@ -323,6 +323,11 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
                   <button className="text-button" onClick={closeReceiptSheet} type="button">Cancel</button>
                 </div>
 
+                <div className="retention-notice">
+                  <strong>90-day file retention</strong>
+                  <span>Receipt files are kept for 90 days to save storage. The transaction entry and report data will remain unless you delete them.</span>
+                </div>
+
                 <form className="form-grid" onSubmit={handleSubmit}>
                   {previewUrl && (
                     <div className="receipt-upload-preview span-2">

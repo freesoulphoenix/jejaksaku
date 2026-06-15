@@ -459,6 +459,11 @@ export default function StatementImportPage() {
           <p>Upload a statement, review normalized rows, edit anything suspicious, then import only the rows you trust.</p>
         </div>
 
+        <div className="retention-notice">
+          <strong>90-day file retention</strong>
+          <span>Imported statement files are kept for 90 days. Reviewed transactions and reports will remain unless you delete them.</span>
+        </div>
+
         <form className="form-grid" onSubmit={handleSubmit}>
           <label className="field-group">
             Source
