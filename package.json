@@ -1,0 +1,16 @@
+{
+  "name": "dompetdaily",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Daily expense log app with React, Express, and Supabase.",
+  "scripts": {
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build:client": "npm run build --prefix client",
+    "start:server": "npm start --prefix server"
+  },
+  "workspaces": [
+    "client",
+    "server"
+  ]
+}
