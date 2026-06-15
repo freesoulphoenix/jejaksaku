@@ -28,7 +28,7 @@ export default function RegisterPage({ onShowLogin }) {
       await register(email, password);
       setMessage('Account created. Check your email if Supabase requires confirmation, then log in.');
     } catch (err) {
-      setError(err.message || 'Unable to create your account.');
+      setError(err.message || 'Unable to create your account. If this email already has an account, please log in instead.');
     } finally {
       setSubmitting(false);
     }

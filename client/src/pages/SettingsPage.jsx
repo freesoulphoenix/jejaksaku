@@ -280,22 +280,6 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
         </article>
 
         <article className="panel">
-          <h2>Receipt Storage</h2>
-          <label className="setting-row">
-            <span>Keep receipt image after import</span>
-            <input type="checkbox" defaultChecked />
-          </label>
-          <label className="field-group">
-            Auto-delete receipts
-            <select defaultValue="never">
-              <option value="never">Never</option>
-              <option value="3m">After 3 months</option>
-              <option value="1y">After 1 year</option>
-            </select>
-          </label>
-        </article>
-
-        <article className="panel">
           <h2>Backup</h2>
           <p className="muted-copy">Export and import controls will connect to Dompet Daily data services later.</p>
           <div className="button-row">

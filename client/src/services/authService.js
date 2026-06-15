@@ -13,6 +13,19 @@ function getAuthRedirectUrl() {
   return new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString();
 }
 
+function isExistingAccountError(error) {
+  const message = error?.message?.toLowerCase() || '';
+  return message.includes('already registered')
+    || message.includes('already been registered')
+    || message.includes('already exists')
+    || message.includes('identity')
+    || message.includes('user already');
+}
+
+function getExistingAccountMessage(email) {
+  return `An account already exists for ${email}. Please log in instead, or use Continue with Google if you created it with Google.`;
+}
+
 export async function registerUser(email, password) {
   const client = requireSupabase();
   const { data, error } = await client.auth.signUp({
@@ -21,7 +34,15 @@ export async function registerUser(email, password) {
   });
 
   if (error) {
+    if (isExistingAccountError(error)) {
+      throw new Error(getExistingAccountMessage(email));
+    }
+
     throw error;
+  }
+
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw new Error(getExistingAccountMessage(email));
   }
 
   if (data.session?.user) {
