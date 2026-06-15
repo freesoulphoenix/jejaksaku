@@ -80,6 +80,10 @@ textarea:focus {
   gap: 10px;
 }
 
+.button-row.compact {
+  gap: 8px;
+}
+
 .primary-button,
 .secondary-button,
 .text-button,
@@ -157,4 +161,57 @@ textarea:focus {
 .form-message.error {
   color: #be123c;
   background: #fff1f2;
+}
+
+.form-message.success {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.settings-panel-wide {
+  grid-column: 1 / -1;
+}
+
+.category-manager-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.category-manager-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.category-manager-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.category-manager-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef4fb;
+}
+
+.category-manager-row.child {
+  padding-left: 18px;
+}
+
+.category-manager-row span {
+  display: grid;
+  gap: 3px;
+}
+
+.category-manager-row small {
+  color: var(--color-faint);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: capitalize;
 }

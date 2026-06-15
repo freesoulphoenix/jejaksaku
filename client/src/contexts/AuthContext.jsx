@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase, supabaseConfigReady } from '../services/supabaseClient.js';
-import { getCurrentUser, loginUser, logoutUser, registerUser, sendPasswordReset } from '../services/authService.js';
+import { getCurrentUser, loginUser, logoutUser, registerUser, sendPasswordReset, signInWithGoogle } from '../services/authService.js';
 
 const AuthContext = createContext(null);
 
@@ -68,10 +68,15 @@ export function AuthProvider({ children }) {
     return sendPasswordReset(email);
   }
 
+  async function loginWithGoogle() {
+    return signInWithGoogle();
+  }
+
   const value = useMemo(() => ({
     user,
     loading,
     login,
+    loginWithGoogle,
     register,
     logout,
     resetPassword

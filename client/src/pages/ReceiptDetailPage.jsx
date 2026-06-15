@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
 
 export default function ReceiptDetailPage({
@@ -28,6 +29,7 @@ export default function ReceiptDetailPage({
   const [processing, setProcessing] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [error, setError] = useState('');
+  const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
 
   function updateField(field, value) {
     setForm((currentForm) => ({
@@ -220,8 +222,8 @@ export default function ReceiptDetailPage({
                   value={transactionForm.category_id}
                 >
                   <option value="">Select category</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>{category.name}</option>
+                  {categoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>{category.displayName}</option>
                   ))}
                 </select>
               </label>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { getCategoryOptions } from '../utils/categoryOptions.js';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -26,6 +27,9 @@ export default function AddTransactionModal({
   const [form, setForm] = useState(() => getInitialForm(transaction));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const categoryOptions = useMemo(() => (
+    getCategoryOptions(categories, form.transaction_type === 'transfer' ? null : form.transaction_type)
+  ), [categories, form.transaction_type]);
 
   function updateField(field, value) {
     setForm((currentForm) => ({
@@ -108,8 +112,8 @@ export default function AddTransactionModal({
               value={form.category_id}
             >
               <option value="">Select category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
+              {categoryOptions.map((category) => (
+                <option key={category.id} value={category.id}>{category.displayName}</option>
               ))}
             </select>
           </label>

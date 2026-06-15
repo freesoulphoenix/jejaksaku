@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getReportData, toReportCsv } from '../services/reportService.js';
+import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency, formatShortCurrency } from '../utils/format.js';
 
 const emptyFilters = {
@@ -75,6 +76,9 @@ export default function ReportsPage() {
   const visibleMonthlySeries = useMemo(() => (
     reportData?.monthlySeries?.slice(-8) || []
   ), [reportData]);
+  const categoryOptions = useMemo(() => (
+    getCategoryOptions(reportData?.categories || [])
+  ), [reportData?.categories]);
 
   async function loadReports(nextFilters = filters) {
     setError('');
@@ -203,8 +207,8 @@ export default function ReportsPage() {
         </select>
         <select onChange={(event) => updateFilter('categoryId', event.target.value)} value={filters.categoryId}>
           <option value="">All categories</option>
-          {reportData?.categories.map((category) => (
-            <option key={category.id} value={category.id}>{category.name}</option>
+          {categoryOptions.map((category) => (
+            <option key={category.id} value={category.id}>{category.displayName}</option>
           ))}
         </select>
         <select onChange={(event) => updateFilter('projectTagId', event.target.value)} value={filters.projectTagId}>

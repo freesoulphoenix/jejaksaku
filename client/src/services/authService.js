@@ -9,6 +9,10 @@ function requireSupabase() {
   return supabase;
 }
 
+function getAuthRedirectUrl() {
+  return new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString();
+}
+
 export async function registerUser(email, password) {
   const client = requireSupabase();
   const { data, error } = await client.auth.signUp({
@@ -43,6 +47,22 @@ export async function loginUser(email, password) {
   return data;
 }
 
+export async function signInWithGoogle() {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: getAuthRedirectUrl()
+    }
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export async function logoutUser() {
   const client = requireSupabase();
   const { error } = await client.auth.signOut();
@@ -72,7 +92,7 @@ export async function getCurrentUser() {
 export async function sendPasswordReset(email) {
   const client = requireSupabase();
   const { data, error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin
+    redirectTo: getAuthRedirectUrl()
   });
 
   if (error) {

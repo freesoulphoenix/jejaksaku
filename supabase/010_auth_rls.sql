@@ -51,7 +51,7 @@ begin
     (new.id, 'Groceries', 'expense'),
     (new.id, 'Transport', 'expense'),
     (new.id, 'Bills & Utilities', 'expense'),
-    (new.id, 'Apartment', 'expense'),
+    (new.id, 'Residential', 'expense'),
     (new.id, 'Subscription', 'expense'),
     (new.id, 'Shopping', 'expense'),
     (new.id, 'Health', 'expense'),
@@ -67,7 +67,7 @@ begin
   insert into public.project_tags (user_profile_id, name)
   values
     (new.id, 'Daily Life'),
-    (new.id, 'Apartment'),
+    (new.id, 'Residential'),
     (new.id, 'Music'),
     (new.id, 'Business'),
     (new.id, 'Travel'),

@@ -3,13 +3,14 @@ import BrandMark from '../components/BrandMark.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function RegisterPage({ onShowLogin }) {
-  const { register } = useAuth();
+  const { loginWithGoogle, register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [oauthSubmitting, setOauthSubmitting] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -30,6 +31,19 @@ export default function RegisterPage({ onShowLogin }) {
       setError(err.message || 'Unable to create your account.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setError('');
+    setMessage('');
+    setOauthSubmitting(true);
+
+    try {
+      await loginWithGoogle();
+    } catch (err) {
+      setError(err.message || 'Unable to continue with Google.');
+      setOauthSubmitting(false);
     }
   }
 
@@ -104,6 +118,13 @@ export default function RegisterPage({ onShowLogin }) {
             {submitting ? 'Creating account...' : 'Register'}
           </button>
         </form>
+
+        <div className="auth-divider"><span>or</span></div>
+
+        <button className="oauth-button" disabled={oauthSubmitting} onClick={handleGoogleSignIn} type="button">
+          <span>G</span>
+          {oauthSubmitting ? 'Opening Google...' : 'Continue with Google'}
+        </button>
 
         <p className="auth-switch">
           Already have an account?

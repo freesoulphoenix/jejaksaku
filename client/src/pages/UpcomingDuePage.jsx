@@ -3,6 +3,7 @@ import DueItem from '../components/DueItem.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { createDuePaymentTransaction, createUpcomingDue, deleteUpcomingDue, getUpcomingDue, updateUpcomingDue } from '../services/upcomingDueService.js';
+import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency } from '../utils/format.js';
 
 const today = new Date().toISOString().slice(0, 10);
@@ -179,6 +180,7 @@ export default function UpcomingDuePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
   const [pendingReminderReview, setPendingReminderReview] = useState(null);
 
   const total = dueItems
@@ -410,8 +412,8 @@ export default function UpcomingDuePage() {
               Category
               <select onChange={(event) => updateField('category_id', event.target.value)} value={form.category_id}>
                 <option value="">Select category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
+                {categoryOptions.map((category) => (
+                  <option key={category.id} value={category.id}>{category.displayName}</option>
                 ))}
               </select>
             </label>

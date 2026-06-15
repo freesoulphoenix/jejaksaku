@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
+import { LanguageProvider } from './contexts/LanguageContext.jsx';
 import AppLayout from './components/AppLayout.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import AccountsPage from './pages/AccountsPage.jsx';
@@ -50,6 +51,39 @@ const pageMap = {
   settings: SettingsPage
 };
 
+function getSafetyNoticeKey(user) {
+  return `dompetdaily_safety_notice_${user?.id || 'guest'}`;
+}
+
+function SafetyNoticePage({ onAcknowledge, user }) {
+  return (
+    <div className="auth-shell safety-notice-shell">
+      <div className="auth-card safety-notice-card">
+        <BrandMark />
+        <div className="auth-heading">
+          <p className="section-kicker">Before you continue</p>
+          <h1>Protect your private information</h1>
+          <p>
+            Dompet Daily is for personal finance records, spending reports, receipt history, and analysis.
+            It is not a banking app, payment app, or transactional service.
+          </p>
+        </div>
+
+        <div className="safety-notice-list">
+          <p>Do not enter bank account numbers, card numbers, CVV, PIN, passwords, OTP codes, or other confidential credentials.</p>
+          <p>Use general account names like BCA, GoPay, Credit Card, or Cash. Put provider details only when they are safe for record keeping.</p>
+          <p>Receipts and statements may contain sensitive data. Upload only files you are comfortable storing for tracking and review.</p>
+        </div>
+
+        <button className="primary-button auth-submit" onClick={onAcknowledge} type="button">
+          I understand
+        </button>
+        <p className="muted-copy safety-notice-user">Signed in as {user?.email}</p>
+      </div>
+    </div>
+  );
+}
+
 function OfflineNotice() {
   const [isOnline, setIsOnline] = useState(() => (
     typeof navigator === 'undefined' ? true : navigator.onLine
@@ -86,6 +120,7 @@ function ProtectedApp() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [authPage, setAuthPage] = useState('login');
   const [pendingReceiptFile, setPendingReceiptFile] = useState(null);
+  const [hasAcknowledgedSafety, setHasAcknowledgedSafety] = useState(false);
   const ActivePage = pageMap[activePage] || DashboardPage;
 
   const summary = useMemo(() => {
@@ -116,6 +151,20 @@ function ProtectedApp() {
     setPendingReceiptFile(null);
   }
 
+  useEffect(() => {
+    if (!user) {
+      setHasAcknowledgedSafety(false);
+      return;
+    }
+
+    setHasAcknowledgedSafety(localStorage.getItem(getSafetyNoticeKey(user)) === 'true');
+  }, [user]);
+
+  function acknowledgeSafetyNotice() {
+    localStorage.setItem(getSafetyNoticeKey(user), 'true');
+    setHasAcknowledgedSafety(true);
+  }
+
   if (loading) {
     return (
       <div className="auth-shell">
@@ -144,6 +193,15 @@ function ProtectedApp() {
       <LoginPage
         onShowForgotPassword={() => setAuthPage('forgot')}
         onShowRegister={() => setAuthPage('register')}
+      />
+    );
+  }
+
+  if (!hasAcknowledgedSafety) {
+    return (
+      <SafetyNoticePage
+        onAcknowledge={acknowledgeSafetyNotice}
+        user={user}
       />
     );
   }
@@ -181,9 +239,11 @@ function ProtectedApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <OfflineNotice />
-      <ProtectedApp />
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <OfflineNotice />
+        <ProtectedApp />
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

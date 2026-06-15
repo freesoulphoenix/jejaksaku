@@ -15,6 +15,7 @@ import {
 } from '../services/statementImportService.js';
 import { createTransaction } from '../services/transactionService.js';
 import { linkDuePayment } from '../services/upcomingDueService.js';
+import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency } from '../utils/format.js';
 
 const allowedExtensions = ['pdf', 'csv', 'xlsx'];
@@ -45,6 +46,7 @@ export default function StatementImportPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
 
   const activeRows = useMemo(() => (
     previewRows.filter((row) => activeStatuses.has(row.import_status))
@@ -520,8 +522,8 @@ export default function StatementImportPage() {
             </select>
             <select onChange={(event) => applyBulkField('category_id', event.target.value)} value="">
               <option value="">Apply category to selected</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
+              {categoryOptions.map((category) => (
+                <option key={category.id} value={category.id}>{category.displayName}</option>
               ))}
             </select>
             <select onChange={(event) => applyBulkField('project_tag_id', event.target.value)} value="">
@@ -626,8 +628,8 @@ export default function StatementImportPage() {
                           value={row.category_id || ''}
                         >
                           <option value="">Select category</option>
-                          {categories.map((category) => (
-                            <option key={category.id} value={category.id}>{category.name}</option>
+                          {categoryOptions.map((category) => (
+                            <option key={category.id} value={category.id}>{category.displayName}</option>
                           ))}
                         </select>
                       </label>

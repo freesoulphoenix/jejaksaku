@@ -1,4 +1,5 @@
 import { supabase, supabaseConfigReady } from './supabaseClient.js';
+import { defaultCategoryTree } from '../data/categoryDefaults.js';
 
 const defaultAccounts = [
   ['BCA', 'Bank'],
@@ -13,27 +14,9 @@ const defaultAccounts = [
   ['LinkAja', 'E-Wallet']
 ];
 
-const defaultCategories = [
-  'Food & Drink',
-  'Groceries',
-  'Transport',
-  'Bills & Utilities',
-  'Apartment',
-  'Subscription',
-  'Shopping',
-  'Health',
-  'Personal Care',
-  'Entertainment',
-  'Travel',
-  'Education',
-  'Music Project',
-  'Business',
-  'Other'
-];
-
 const defaultProjectTags = [
   'Daily Life',
-  'Apartment',
+  'Residential',
   'Music',
   'Business',
   'Travel',
@@ -95,30 +78,62 @@ async function seedUserDefaults(client, userProfileId) {
     }
   }
 
-  const { data: existingCategories, error: categoryCheckError } = await client
+  await client
     .from('categories')
-    .select('id')
+    .update({ name: 'Residential' })
     .eq('user_profile_id', userProfileId)
-    .limit(1);
+    .eq('name', 'Apartment')
+    .eq('type', 'expense');
 
-  if (categoryCheckError) {
-    throw categoryCheckError;
+  const { error: parentCategoryError } = await client
+    .from('categories')
+    .upsert(defaultCategoryTree.map((category) => ({
+      user_profile_id: userProfileId,
+      name: category.name,
+      type: 'expense',
+      parent_category_id: null
+    })), {
+      ignoreDuplicates: true,
+      onConflict: 'user_profile_id,name,type'
+    });
+
+  if (parentCategoryError) {
+    throw parentCategoryError;
   }
 
-  if (!existingCategories?.length) {
-    const { error } = await client
-      .from('categories')
-      .upsert(defaultCategories.map((name) => ({
+  const { data: parentCategories, error: parentFetchError } = await client
+    .from('categories')
+    .select('id, name')
+    .eq('user_profile_id', userProfileId)
+    .eq('type', 'expense')
+    .is('parent_category_id', null);
+
+  if (parentFetchError) {
+    throw parentFetchError;
+  }
+
+  const parentIdByName = new Map(parentCategories.map((category) => [category.name, category.id]));
+  const childCategories = defaultCategoryTree.flatMap((parent) => (
+    parent.children
+      .map((name) => ({
         user_profile_id: userProfileId,
         name,
-        type: 'expense'
-      })), {
+        type: 'expense',
+        parent_category_id: parentIdByName.get(parent.name)
+      }))
+      .filter((category) => category.parent_category_id)
+  ));
+
+  if (childCategories.length) {
+    const { error: childCategoryError } = await client
+      .from('categories')
+      .upsert(childCategories, {
         ignoreDuplicates: true,
         onConflict: 'user_profile_id,name,type'
       });
 
-    if (error) {
-      throw error;
+    if (childCategoryError) {
+      throw childCategoryError;
     }
   }
 

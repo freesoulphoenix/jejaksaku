@@ -24,6 +24,7 @@ create table if not exists public.accounts (
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
+  parent_category_id uuid references public.categories(id) on delete cascade,
   name text not null,
   type text default 'expense',
   created_at timestamptz default now(),
@@ -88,6 +89,9 @@ on public.accounts (user_profile_id);
 
 create index if not exists categories_user_profile_id_idx
 on public.categories (user_profile_id);
+
+create index if not exists categories_parent_category_id_idx
+on public.categories (parent_category_id);
 
 create index if not exists project_tags_user_profile_id_idx
 on public.project_tags (user_profile_id);

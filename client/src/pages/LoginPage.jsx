@@ -3,11 +3,12 @@ import BrandMark from '../components/BrandMark.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function LoginPage({ onShowForgotPassword, onShowRegister }) {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [oauthSubmitting, setOauthSubmitting] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -20,6 +21,18 @@ export default function LoginPage({ onShowForgotPassword, onShowRegister }) {
       setError(err.message || 'Unable to log in. Check your email and password.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setError('');
+    setOauthSubmitting(true);
+
+    try {
+      await loginWithGoogle();
+    } catch (err) {
+      setError(err.message || 'Unable to continue with Google.');
+      setOauthSubmitting(false);
     }
   }
 
@@ -78,6 +91,13 @@ export default function LoginPage({ onShowForgotPassword, onShowRegister }) {
             {submitting ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        <div className="auth-divider"><span>or</span></div>
+
+        <button className="oauth-button" disabled={oauthSubmitting} onClick={handleGoogleSignIn} type="button">
+          <span>G</span>
+          {oauthSubmitting ? 'Opening Google...' : 'Continue with Google'}
+        </button>
 
         <p className="auth-switch compact-switch">
           Forgot password?
