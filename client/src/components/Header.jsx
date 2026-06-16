@@ -7,7 +7,7 @@ export default function Header({ onLogout, onNavigate, user }) {
         <BrandMark />
         <div>
           <strong>Dompet Daily</strong>
-          <small>Receipts Don't Lie</small>
+          <small>Access your daily expense workspace.</small>
         </div>
       </div>
       <div className="header-actions">

@@ -575,8 +575,13 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
                       </button>
                     </div>
                   </div>
-                  <button className="category-delete-reveal" onClick={() => removeCategory(category)} type="button">
-                    Delete
+                  <button
+                    aria-label={`Delete ${category.name}`}
+                    className="category-delete-reveal"
+                    onClick={() => removeCategory(category)}
+                    type="button"
+                  >
+                    <FlatIcon name="trash" />
                   </button>
                 </div>
               );

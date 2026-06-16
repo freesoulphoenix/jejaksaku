@@ -501,7 +501,7 @@ textarea:focus {
 }
 
 .category-flat-row.reveal-delete .category-row-slide {
-  transform: translateX(-76px);
+  transform: translateX(-52px);
 }
 
 .category-flat-row.is-dragging {
@@ -518,13 +518,19 @@ textarea:focus {
   top: 0;
   right: 0;
   bottom: 0;
-  width: 74px;
+  display: grid;
+  width: 50px;
+  place-items: center;
   border: 0;
-  color: #ffffff;
-  background: var(--color-danger);
-  font-size: 0.78rem;
-  font-weight: 900;
+  color: var(--color-danger);
+  background: transparent;
   transition: transform 0.18s ease;
+}
+
+.category-delete-reveal svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 2.2;
 }
 
 .category-minus-button,
