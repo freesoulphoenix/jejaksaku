@@ -316,24 +316,11 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   }
 
   function renderDeleteButton(category) {
-    if (pendingDeleteId === category.id) {
-      return (
-        <button
-          aria-label={`Delete ${category.name}`}
-          className="category-icon-button danger"
-          onClick={() => removeCategory(category)}
-          type="button"
-        >
-          <FlatIcon name="trash" />
-        </button>
-      );
-    }
-
     return (
       <button
-        aria-label={`Show delete for ${category.name}`}
+        aria-label={pendingDeleteId === category.id ? `Hide delete for ${category.name}` : `Show delete for ${category.name}`}
         className="category-minus-button"
-        onClick={() => setPendingDeleteId(category.id)}
+        onClick={() => setPendingDeleteId((current) => (current === category.id ? '' : category.id))}
         type="button"
       >
         <FlatIcon name="minus" />
@@ -447,56 +434,61 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
               const preview = children.map((child) => child.name).join(', ');
 
               return (
-                <div className="category-flat-row" key={category.id}>
-                  {renderDeleteButton(category)}
-                  <button
-                    className="category-row-main"
-                    disabled
-                    type="button"
-                  >
-                    <strong>{isChildView ? category.name : getCategoryLabel(category)}</strong>
-                    {!isChildView && showSubcategories && preview && <small>{preview}</small>}
-                  </button>
-                  <div className="category-row-tools">
+                <div className={pendingDeleteId === category.id ? 'category-flat-row reveal-delete' : 'category-flat-row'} key={category.id}>
+                  <div className="category-row-slide">
+                    {renderDeleteButton(category)}
                     <button
-                      className="category-icon-button"
-                      aria-label={isChildView ? `Edit ${category.name}` : `Open ${category.name} subcategories`}
-                      onClick={isChildView ? () => editCategory(category) : () => openParentCategory(category)}
+                      className="category-row-main"
+                      disabled
                       type="button"
                     >
-                      <FlatIcon name="edit" />
+                      <strong>{isChildView ? category.name : getCategoryLabel(category)}</strong>
+                      {!isChildView && showSubcategories && preview && <small>{preview}</small>}
                     </button>
-                    <button
-                      aria-label={`Sort ${category.name}`}
-                      className="category-icon-button"
-                      onClick={() => setActiveSortId((current) => (current === category.id ? '' : category.id))}
-                      type="button"
-                    >
-                      <FlatIcon name="grip" />
-                    </button>
-                    {activeSortId === category.id && (
-                      <span className="category-sort-controls">
-                        <button
-                          aria-label={`Move ${category.name} up`}
-                          className="category-icon-button"
-                          disabled={index === 0 || isSortingCategory}
-                          onClick={() => moveCategory(category, 'up', rows)}
-                          type="button"
-                        >
-                          <FlatIcon name="up" />
-                        </button>
-                        <button
-                          aria-label={`Move ${category.name} down`}
-                          className="category-icon-button"
-                          disabled={index === rows.length - 1 || isSortingCategory}
-                          onClick={() => moveCategory(category, 'down', rows)}
-                          type="button"
-                        >
-                          <FlatIcon name="down" />
-                        </button>
-                      </span>
-                    )}
+                    <div className="category-row-tools">
+                      <button
+                        className="category-icon-button"
+                        aria-label={isChildView ? `Edit ${category.name}` : `Open ${category.name} subcategories`}
+                        onClick={isChildView ? () => editCategory(category) : () => openParentCategory(category)}
+                        type="button"
+                      >
+                        <FlatIcon name="edit" />
+                      </button>
+                      <button
+                        aria-label={`Sort ${category.name}`}
+                        className="category-icon-button"
+                        onClick={() => setActiveSortId((current) => (current === category.id ? '' : category.id))}
+                        type="button"
+                      >
+                        <FlatIcon name="grip" />
+                      </button>
+                      {activeSortId === category.id && (
+                        <span className="category-sort-controls">
+                          <button
+                            aria-label={`Move ${category.name} up`}
+                            className="category-icon-button"
+                            disabled={index === 0 || isSortingCategory}
+                            onClick={() => moveCategory(category, 'up', rows)}
+                            type="button"
+                          >
+                            <FlatIcon name="up" />
+                          </button>
+                          <button
+                            aria-label={`Move ${category.name} down`}
+                            className="category-icon-button"
+                            disabled={index === rows.length - 1 || isSortingCategory}
+                            onClick={() => moveCategory(category, 'down', rows)}
+                            type="button"
+                          >
+                            <FlatIcon name="down" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <button className="category-delete-reveal" onClick={() => removeCategory(category)} type="button">
+                    Delete
+                  </button>
                 </div>
               );
             })}
