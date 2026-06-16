@@ -13,6 +13,7 @@ import SettingsPage from './pages/SettingsPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import AddTransactionModal from './components/AddTransactionModal.jsx';
 import BrandMark from './components/BrandMark.jsx';
 
@@ -115,7 +116,7 @@ function OfflineNotice() {
 }
 
 function ProtectedApp() {
-  const { deleteAccount, loading, user, logout } = useAuth();
+  const { deleteAccount, loading, passwordRecovery, user, logout } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [authPage, setAuthPage] = useState('login');
@@ -195,6 +196,10 @@ function ProtectedApp() {
         onShowRegister={() => setAuthPage('register')}
       />
     );
+  }
+
+  if (passwordRecovery) {
+    return <ResetPasswordPage />;
   }
 
   if (!hasAcknowledgedSafety) {

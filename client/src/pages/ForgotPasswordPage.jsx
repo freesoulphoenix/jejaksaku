@@ -32,7 +32,7 @@ export default function ForgotPasswordPage({ onShowLogin }) {
           <BrandMark />
           <div>
             <strong>Dompet Daily</strong>
-            <small>Receipts Don't Lie</small>
+            <small>Access your daily expense workspace.</small>
           </div>
         </div>
 

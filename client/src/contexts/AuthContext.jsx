@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase, supabaseConfigReady } from '../services/supabaseClient.js';
-import { deleteCurrentAccount, getCurrentUser, loginUser, logoutUser, registerUser, sendPasswordReset, signInWithGoogle } from '../services/authService.js';
+import { deleteCurrentAccount, getCurrentUser, loginUser, logoutUser, registerUser, sendPasswordReset, signInWithGoogle, updatePassword } from '../services/authService.js';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -37,6 +38,10 @@ export function AuthProvider({ children }) {
     }
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+      }
+
       setUser(session?.user || null);
       setLoading(false);
     });
@@ -68,6 +73,16 @@ export function AuthProvider({ children }) {
     return sendPasswordReset(email);
   }
 
+  async function saveNewPassword(password) {
+    const data = await updatePassword(password);
+    setPasswordRecovery(false);
+    return data;
+  }
+
+  function finishPasswordRecovery() {
+    setPasswordRecovery(false);
+  }
+
   async function loginWithGoogle() {
     return signInWithGoogle();
   }
@@ -82,12 +97,15 @@ export function AuthProvider({ children }) {
     user,
     loading,
     deleteAccount,
+    finishPasswordRecovery,
     login,
     loginWithGoogle,
+    passwordRecovery,
     register,
     logout,
-    resetPassword
-  }), [loading, user]);
+    resetPassword,
+    saveNewPassword
+  }), [loading, passwordRecovery, user]);
 
   return (
     <AuthContext.Provider value={value}>

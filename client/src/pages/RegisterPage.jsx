@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import BrandMark from '../components/BrandMark.jsx';
+import PasswordGuidance from '../components/PasswordGuidance.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function RegisterPage({ onShowLogin }) {
@@ -54,7 +56,7 @@ export default function RegisterPage({ onShowLogin }) {
           <BrandMark />
           <div>
             <strong>Dompet Daily</strong>
-            <small>Receipts Don't Lie</small>
+            <small>Access your daily expense workspace.</small>
           </div>
         </div>
 
@@ -82,36 +84,25 @@ export default function RegisterPage({ onShowLogin }) {
               value={email}
             />
           </label>
-          <label className="field-group">
-            Password
-            <input
-              autoComplete="new-password"
-              enterKeyHint="next"
-              id="register-password"
-              minLength="6"
-              name="new-password"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 6 characters"
-              required
-              type="password"
-              value={password}
-            />
-          </label>
-          <label className="field-group">
-            Confirm password
-            <input
-              autoComplete="new-password"
-              enterKeyHint="done"
-              id="register-confirm-password"
-              minLength="6"
-              name="confirm-password"
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="Repeat password"
-              required
-              type="password"
-              value={confirmPassword}
-            />
-          </label>
+          <PasswordInput
+            autoComplete="new-password"
+            id="register-password"
+            label="Password"
+            name="new-password"
+            onChange={setPassword}
+            placeholder="Your password"
+            value={password}
+          />
+          <PasswordGuidance password={password} />
+          <PasswordInput
+            autoComplete="new-password"
+            id="register-confirm-password"
+            label="Confirm password"
+            name="confirm-password"
+            onChange={setConfirmPassword}
+            placeholder="Repeat password"
+            value={confirmPassword}
+          />
           {error && <p className="auth-error">{error}</p>}
           {message && <p className="auth-success">{message}</p>}
           <button className="primary-button auth-submit" disabled={submitting} type="submit">
@@ -122,8 +113,15 @@ export default function RegisterPage({ onShowLogin }) {
         <div className="auth-divider"><span>or</span></div>
 
         <button className="oauth-button" disabled={oauthSubmitting} onClick={handleGoogleSignIn} type="button">
-          <span>G</span>
-          {oauthSubmitting ? 'Opening Google...' : 'Continue with Google'}
+          <span className="google-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.6-.2-2.3H12v4.4h5.9c-.3 1.4-1 2.5-2.1 3.2v2.7h3.4c2-1.8 3.4-4.5 3.4-8Z" />
+              <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.4-2.7c-.9.6-2.2 1-3.9 1-3 0-5.5-2-6.4-4.8H2.1v2.8C3.9 20.4 7.7 23 12 23Z" />
+              <path fill="#FBBC05" d="M5.6 13.8c-.2-.6-.4-1.2-.4-1.8s.1-1.2.4-1.8V7.4H2.1C1.4 8.8 1 10.4 1 12s.4 3.2 1.1 4.6l3.5-2.8Z" />
+              <path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1C17.5 2.1 15 1 12 1 7.7 1 3.9 3.6 2.1 7.4l3.5 2.8C6.5 7.4 9 5.4 12 5.4Z" />
+            </svg>
+          </span>
+          {oauthSubmitting ? 'Opening Google...' : 'Sign up with Google'}
         </button>
 
         <p className="auth-switch">

@@ -26,8 +26,28 @@ function getExistingAccountMessage(email) {
   return `An account already exists for ${email}. Please log in instead, or use Continue with Google if you created it with Google.`;
 }
 
+export function validatePasswordStrength(password) {
+  return {
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /\d/.test(password),
+    hasSpecial: /[^A-Za-z0-9]/.test(password),
+    hasUppercase: /[A-Z]/.test(password),
+    minLength: password.length >= 8
+  };
+}
+
+export function isStrongPassword(password) {
+  const checks = validatePasswordStrength(password);
+  return Object.values(checks).every(Boolean);
+}
+
 export async function registerUser(email, password) {
   const client = requireSupabase();
+
+  if (!isStrongPassword(password)) {
+    throw new Error('Password must include uppercase, lowercase, number, special character, and at least 8 characters.');
+  }
+
   const { data, error } = await client.auth.signUp({
     email,
     password,
@@ -133,6 +153,24 @@ export async function sendPasswordReset(email) {
   const client = requireSupabase();
   const { data, error } = await client.auth.resetPasswordForEmail(email, {
     redirectTo: getAuthRedirectUrl()
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updatePassword(password) {
+  const client = requireSupabase();
+
+  if (!isStrongPassword(password)) {
+    throw new Error('Password must include uppercase, lowercase, number, special character, and at least 8 characters.');
+  }
+
+  const { data, error } = await client.auth.updateUser({
+    password
   });
 
   if (error) {
