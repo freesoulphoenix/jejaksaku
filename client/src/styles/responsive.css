@@ -222,6 +222,7 @@
   .form-grid,
   .filter-panel,
   .category-manager-form,
+  .category-manager-form.compact,
   .statement-row-editor,
   .report-filter-panel {
     grid-template-columns: 1fr;
@@ -299,6 +300,7 @@
 
   .filter-panel,
   .category-manager-form,
+  .category-manager-form.compact,
   .form-grid,
   .statement-row-editor {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -333,6 +335,7 @@
   .form-grid,
   .filter-panel,
   .category-manager-form,
+  .category-manager-form.compact,
   .statement-row-editor,
   .report-filter-panel {
     grid-template-columns: 1fr;

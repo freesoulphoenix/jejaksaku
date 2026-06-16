@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext.jsx';
 import { createCategory, deleteCategory, getCategories, updateCategory } from '../services/categoryService.js';
-import { getCategoryOptions, getParentCategoryOptions } from '../utils/categoryOptions.js';
 
 const emptyCategoryForm = {
   id: null,
@@ -10,6 +9,87 @@ const emptyCategoryForm = {
   parent_category_id: ''
 };
 
+const appVersion = '0.1.0';
+
+function FlatIcon({ name }) {
+  const commonProps = {
+    'aria-hidden': 'true',
+    fill: 'none',
+    height: '18',
+    stroke: 'currentColor',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeWidth: '2',
+    viewBox: '0 0 24 24',
+    width: '18'
+  };
+
+  if (name === 'back') {
+    return <svg {...commonProps}><path d="m15 18-6-6 6-6" /></svg>;
+  }
+
+  if (name === 'category') {
+    return <svg {...commonProps}><rect height="6" rx="1.5" width="6" x="4" y="4" /><rect height="6" rx="1.5" width="6" x="14" y="4" /><rect height="6" rx="1.5" width="6" x="4" y="14" /><path d="M14 17h6" /></svg>;
+  }
+
+  if (name === 'edit') {
+    return <svg {...commonProps}><path d="M12 20h9" /><path d="m16.5 3.5 4 4L8 20H4v-4L16.5 3.5Z" /></svg>;
+  }
+
+  if (name === 'grip') {
+    return <svg {...commonProps}><path d="M8 6h.01" /><path d="M8 12h.01" /><path d="M8 18h.01" /><path d="M16 6h.01" /><path d="M16 12h.01" /><path d="M16 18h.01" /></svg>;
+  }
+
+  if (name === 'minus') {
+    return <svg {...commonProps}><circle cx="12" cy="12" r="8" fill="currentColor" stroke="none" /><path d="M8.5 12h7" stroke="#fff" /></svg>;
+  }
+
+  if (name === 'trash') {
+    return <svg {...commonProps}><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 14h10l1-14" /><path d="M9 7V4h6v3" /></svg>;
+  }
+
+  if (name === 'user') {
+    return <svg {...commonProps}><circle cx="12" cy="8" r="4" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>;
+  }
+
+  if (name === 'language') {
+    return <svg {...commonProps}><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a14 14 0 0 1 0 18" /><path d="M12 3a14 14 0 0 0 0 18" /></svg>;
+  }
+
+  if (name === 'info') {
+    return <svg {...commonProps}><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></svg>;
+  }
+
+  if (name === 'version') {
+    return <svg {...commonProps}><path d="M7 7h10v10H7z" /><path d="M4 10h3" /><path d="M4 14h3" /><path d="M17 10h3" /><path d="M17 14h3" /></svg>;
+  }
+
+  return <svg {...commonProps}><path d="M12 5v14" /><path d="M5 12h14" /></svg>;
+}
+
+function groupCategories(categories) {
+  const childrenByParentId = new Map();
+  const parents = [];
+
+  categories.forEach((category) => {
+    if (category.parent_category_id) {
+      const children = childrenByParentId.get(category.parent_category_id) || [];
+      children.push(category);
+      childrenByParentId.set(category.parent_category_id, children);
+      return;
+    }
+
+    parents.push(category);
+  });
+
+  parents.sort((a, b) => `${a.type}${a.name}`.localeCompare(`${b.type}${b.name}`));
+  childrenByParentId.forEach((children) => {
+    children.sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  return { childrenByParentId, parents };
+}
+
 export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const { language, setLanguage, supportedLanguages } = useLanguage();
   const [categories, setCategories] = useState([]);
@@ -17,15 +97,25 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const [categoryMessage, setCategoryMessage] = useState('');
   const [categoryError, setCategoryError] = useState('');
   const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [settingsView, setSettingsView] = useState('settings');
+  const [selectedParentId, setSelectedParentId] = useState('');
+  const [showSubcategories, setShowSubcategories] = useState(true);
+  const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState('');
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-  const parentCategories = useMemo(() => (
-    getParentCategoryOptions(categories, categoryForm.type)
-  ), [categories, categoryForm.type]);
-  const categoryOptions = useMemo(() => getCategoryOptions(categories, null), [categories]);
+  const { childrenByParentId, parents } = useMemo(() => groupCategories(categories), [categories]);
+  const selectedParent = useMemo(() => (
+    parents.find((category) => category.id === selectedParentId) || null
+  ), [parents, selectedParentId]);
+  const visibleParents = useMemo(() => parents, [parents]);
+  const activeParentOptions = useMemo(() => (
+    parents.filter((category) => category.type === categoryForm.type && category.id !== categoryForm.id)
+  ), [categoryForm.id, categoryForm.type, parents]);
+  const selectedChildren = selectedParent ? childrenByParentId.get(selectedParent.id) || [] : [];
 
   useEffect(() => {
     loadCategories();
@@ -55,12 +145,14 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       type: category.type || 'expense',
       parent_category_id: category.parent_category_id || ''
     });
+    setIsCategoryFormOpen(true);
     setCategoryMessage('');
     setCategoryError('');
   }
 
   function resetCategoryForm() {
     setCategoryForm(emptyCategoryForm);
+    setIsCategoryFormOpen(false);
   }
 
   async function saveCategory(event) {
@@ -86,6 +178,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
 
       resetCategoryForm();
       await loadCategories();
+      setPendingDeleteId('');
     } catch (error) {
       setCategoryError(error.message);
     } finally {
@@ -110,9 +203,215 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       await deleteCategory(category.id);
       await loadCategories();
       setCategoryMessage('Category deleted.');
+      setPendingDeleteId('');
+      if (selectedParentId === category.id) {
+        setSelectedParentId('');
+        setSettingsView('manager');
+      }
     } catch (error) {
       setCategoryError(error.message);
     }
+  }
+
+  function openCategoryManager() {
+    setSettingsView('manager');
+    setSelectedParentId('');
+    setCategoryMessage('');
+    setCategoryError('');
+    setPendingDeleteId('');
+    resetCategoryForm();
+  }
+
+  function closeCategoryManager() {
+    setSettingsView('settings');
+    setSelectedParentId('');
+    setCategoryMessage('');
+    setCategoryError('');
+    setPendingDeleteId('');
+    resetCategoryForm();
+  }
+
+  function openParentCategory(category) {
+    setSelectedParentId(category.id);
+    setSettingsView('children');
+    setPendingDeleteId('');
+    setCategoryMessage('');
+    setCategoryError('');
+    resetCategoryForm();
+  }
+
+  function addTopLevelCategory() {
+    setCategoryForm(emptyCategoryForm);
+    setIsCategoryFormOpen(true);
+  }
+
+  function addChildCategory() {
+    setCategoryForm({
+      ...emptyCategoryForm,
+      type: selectedParent?.type || 'expense',
+      parent_category_id: selectedParent?.id || ''
+    });
+    setIsCategoryFormOpen(true);
+  }
+
+  function getCategoryLabel(category) {
+    return `${category.type === 'income' ? 'Income' : 'Expense'} : ${category.name}`;
+  }
+
+  function renderDeleteButton(category) {
+    if (pendingDeleteId === category.id) {
+      return (
+        <button
+          aria-label={`Delete ${category.name}`}
+          className="category-icon-button danger"
+          onClick={() => removeCategory(category)}
+          type="button"
+        >
+          <FlatIcon name="trash" />
+        </button>
+      );
+    }
+
+    return (
+      <button
+        aria-label={`Show delete for ${category.name}`}
+        className="category-minus-button"
+        onClick={() => setPendingDeleteId(category.id)}
+        type="button"
+      >
+        <FlatIcon name="minus" />
+      </button>
+    );
+  }
+
+  function renderCategoryForm() {
+    if (!isCategoryFormOpen) {
+      return null;
+    }
+
+    return (
+      <form className="category-manager-form compact" onSubmit={saveCategory}>
+        <label className="field-group">
+          Name
+          <input
+            onChange={(event) => updateCategoryForm('name', event.target.value)}
+            placeholder="Category name"
+            value={categoryForm.name}
+          />
+        </label>
+        <label className="field-group">
+          Type
+          <select onChange={(event) => updateCategoryForm('type', event.target.value)} value={categoryForm.type}>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </label>
+        <label className="field-group">
+          Parent
+          <select
+            onChange={(event) => updateCategoryForm('parent_category_id', event.target.value)}
+            value={categoryForm.parent_category_id}
+          >
+            <option value="">Top-level category</option>
+            {activeParentOptions.map((category) => (
+              <option key={category.id} value={category.id}>{category.name}</option>
+            ))}
+          </select>
+        </label>
+        <div className="category-manager-actions">
+          <button className="primary-button small-action" disabled={isSavingCategory} type="submit">
+            {categoryForm.id ? 'Save' : 'Add'}
+          </button>
+          <button className="secondary-button small-action" onClick={resetCategoryForm} type="button">Cancel</button>
+        </div>
+      </form>
+    );
+  }
+
+  function renderCategoryManager() {
+    const isChildView = settingsView === 'children' && selectedParent;
+    const rows = isChildView ? selectedChildren : visibleParents;
+
+    return (
+      <div className="page-stack category-subpage">
+        <section className="category-subpage-header">
+          <button className="category-back-button" onClick={isChildView ? () => setSettingsView('manager') : closeCategoryManager} type="button">
+            <FlatIcon name="back" />
+            <span>Settings</span>
+          </button>
+        </section>
+
+        <section className="panel category-manager-panel">
+          <div className="category-manager-title-row">
+            <div className="category-title-lockup">
+              <span className="settings-flat-icon"><FlatIcon name="category" /></span>
+              <div>
+                <p className="section-kicker">Categories</p>
+                <h2>{isChildView ? selectedParent.name : 'Add / remove categories'}</h2>
+              </div>
+            </div>
+
+            {!isChildView && (
+              <label className="category-toggle" aria-label="Show subcategories">
+                <input
+                  checked={showSubcategories}
+                  onChange={(event) => setShowSubcategories(event.target.checked)}
+                  type="checkbox"
+                />
+                <span />
+              </label>
+            )}
+          </div>
+
+          <div className="category-toolbar">
+            <button
+              className="secondary-button small-action"
+              onClick={isChildView ? addChildCategory : addTopLevelCategory}
+              type="button"
+            >
+              {isChildView ? 'Add subcategory' : 'Add category'}
+            </button>
+          </div>
+
+          {renderCategoryForm()}
+
+          {categoryError && <p className="form-message error compact-message">{categoryError}</p>}
+          {categoryMessage && <p className="form-message success compact-message">{categoryMessage}</p>}
+
+          <div className="category-flat-list">
+            {rows.length === 0 && (
+              <p className="muted-copy category-empty-copy">No categories yet.</p>
+            )}
+
+            {rows.map((category) => {
+              const children = childrenByParentId.get(category.id) || [];
+              const preview = children.map((child) => child.name).join(', ');
+
+              return (
+                <div className="category-flat-row" key={category.id}>
+                  {renderDeleteButton(category)}
+                  <button
+                    className="category-row-main"
+                    disabled={isChildView || children.length === 0}
+                    onClick={() => openParentCategory(category)}
+                    type="button"
+                  >
+                    <strong>{isChildView ? category.name : getCategoryLabel(category)}</strong>
+                    {!isChildView && showSubcategories && preview && <small>{preview}</small>}
+                  </button>
+                  <div className="category-row-tools">
+                    <button className="category-icon-button" aria-label={`Edit ${category.name}`} onClick={() => editCategory(category)} type="button">
+                      <FlatIcon name="edit" />
+                    </button>
+                    <span className="category-grip" aria-hidden="true"><FlatIcon name="grip" /></span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    );
   }
 
   async function handleDeleteAccount(event) {
@@ -134,6 +433,10 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     }
   }
 
+  if (settingsView !== 'settings') {
+    return renderCategoryManager();
+  }
+
   return (
     <div className="page-stack">
       <section className="page-heading">
@@ -145,13 +448,61 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
 
       <section className="settings-grid">
         <article className="panel">
-          <h2>Account</h2>
+          <div className="settings-panel-title">
+            <span className="settings-flat-icon"><FlatIcon name="user" /></span>
+            <h2>Account</h2>
+          </div>
           <p className="muted-copy">{user?.email}</p>
           <div className="button-row">
             <button className="secondary-button" onClick={onLogout}>Logout</button>
           </div>
+        </article>
 
-          <div className="danger-zone">
+        <article className="panel">
+          <div className="settings-panel-title">
+            <span className="settings-flat-icon"><FlatIcon name="language" /></span>
+            <h2>Language</h2>
+          </div>
+          <label className="field-group">
+            App language
+            <select onChange={(event) => setLanguage(event.target.value)} value={language}>
+              {supportedLanguages.map((option) => (
+                <option key={option.code} value={option.code}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <p className="muted-copy">This saves your language preference for the app.</p>
+        </article>
+
+        <article className="panel">
+          <div className="settings-panel-title">
+            <span className="settings-flat-icon"><FlatIcon name="category" /></span>
+            <h2>Add Categories</h2>
+          </div>
+          <p className="muted-copy">Manage parent categories and subcategories.</p>
+          <button className="secondary-button small-action" onClick={openCategoryManager} type="button">
+            Add / remove categories
+          </button>
+        </article>
+
+        <article className="panel">
+          <div className="settings-panel-title">
+            <span className="settings-flat-icon"><FlatIcon name="info" /></span>
+            <h2>About</h2>
+          </div>
+          <p className="muted-copy">Dompet Daily is for expense records, receipt history, reports, and analysis.</p>
+        </article>
+
+        <article className="panel">
+          <div className="settings-panel-title">
+            <span className="settings-flat-icon"><FlatIcon name="version" /></span>
+            <h2>Version</h2>
+          </div>
+          <p className="muted-copy">Dompet Daily {appVersion}</p>
+        </article>
+
+        <article className="panel settings-panel-wide">
+          <div className="danger-zone standalone">
             <div>
               <h3>Delete Account</h3>
               <p>
@@ -204,81 +555,6 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             )}
           </div>
         </article>
-
-        <article className="panel">
-          <h2>Language</h2>
-          <label className="field-group">
-            App language
-            <select onChange={(event) => setLanguage(event.target.value)} value={language}>
-              {supportedLanguages.map((option) => (
-                <option key={option.code} value={option.code}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <p className="muted-copy">This saves your language preference for the app.</p>
-        </article>
-
-        <article className="panel settings-panel-wide">
-          <h2>Categories</h2>
-          <form className="category-manager-form" onSubmit={saveCategory}>
-            <label className="field-group">
-              Name
-              <input
-                onChange={(event) => updateCategoryForm('name', event.target.value)}
-                placeholder="Category name"
-                value={categoryForm.name}
-              />
-            </label>
-            <label className="field-group">
-              Type
-              <select onChange={(event) => updateCategoryForm('type', event.target.value)} value={categoryForm.type}>
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
-            </label>
-            <label className="field-group">
-              Parent
-              <select
-                onChange={(event) => updateCategoryForm('parent_category_id', event.target.value)}
-                value={categoryForm.parent_category_id}
-              >
-                <option value="">Top-level category</option>
-                {parentCategories
-                  .filter((category) => category.id !== categoryForm.id)
-                  .map((category) => (
-                    <option key={category.id} value={category.id}>{category.name}</option>
-                  ))}
-              </select>
-            </label>
-            <div className="category-manager-actions">
-              <button className="primary-button" disabled={isSavingCategory} type="submit">
-                {categoryForm.id ? 'Save Category' : 'Add Category'}
-              </button>
-              {categoryForm.id && (
-                <button className="secondary-button" onClick={resetCategoryForm} type="button">Cancel Edit</button>
-              )}
-            </div>
-          </form>
-
-          {categoryError && <p className="form-message error">{categoryError}</p>}
-          {categoryMessage && <p className="form-message success">{categoryMessage}</p>}
-
-          <div className="category-manager-list">
-            {categoryOptions.map((category) => (
-              <div className={category.isParent ? 'category-manager-row' : 'category-manager-row child'} key={category.id}>
-                <span>
-                  <strong>{category.isParent ? category.name : category.displayName}</strong>
-                  <small>{category.type}</small>
-                </span>
-                <div className="button-row compact">
-                  <button className="secondary-button small" onClick={() => editCategory(category)} type="button">Edit</button>
-                  <button className="text-button danger" onClick={() => removeCategory(category)} type="button">Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-
       </section>
     </div>
   );
