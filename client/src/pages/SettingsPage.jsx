@@ -32,6 +32,17 @@ function FlatIcon({ name }) {
     return <svg {...commonProps}><rect height="6" rx="1.5" width="6" x="4" y="4" /><rect height="6" rx="1.5" width="6" x="14" y="4" /><rect height="6" rx="1.5" width="6" x="4" y="14" /><path d="M14 17h6" /></svg>;
   }
 
+  if (name === 'categoryAdd') {
+    return (
+      <svg aria-hidden="true" fill="currentColor" height="22" viewBox="0 0 512 512" width="22">
+        <path d="M42.67,342.55c0-35.35,28.65-64,64-64h62.78c35.35,0,64,28.65,64,64v62.78c0,35.35-28.65,64-64,64h-62.78c-35.35,0-64-28.65-64-64v-62.78ZM106.67,321.22c-11.78,0-21.33,9.55-21.33,21.33v62.78c0,11.78,9.55,21.33,21.33,21.33h62.78c11.78,0,21.33-9.55,21.33-21.33v-62.78c0-11.78-9.55-21.33-21.33-21.33h-62.78Z" />
+        <path d="M278.58,106.67c0-35.35,28.65-64,64-64h62.78c35.35,0,64,28.65,64,64v62.78c0,35.35-28.65,64-64,64h-62.78c-35.35,0-64-28.65-64-64v-62.78ZM342.58,85.33c-11.78,0-21.33,9.55-21.33,21.33v62.78c0,11.78,9.55,21.33,21.33,21.33h62.78c11.78,0,21.33-9.55,21.33-21.33v-62.78c0-11.78-9.55-21.33-21.33-21.33h-62.78Z" />
+        <path d="M384,277.33c11.78,0,21.33,9.55,21.33,21.33v42.67h42.67c11.78,0,21.33,9.55,21.33,21.33s-9.55,21.33-21.33,21.33h-42.67v42.67c0,11.78-9.55,21.33-21.33,21.33s-21.33-9.55-21.33-21.33v-42.67h-42.67c-11.78,0-21.33-9.55-21.33-21.33s9.55-21.33,21.33-21.33h42.67v-42.67c0-11.78,9.55-21.33,21.33-21.33Z" />
+        <rect x="52.84" y="138.06" width="170.44" height="43" rx="21.39" ry="21.39" />
+      </svg>
+    );
+  }
+
   if (name === 'edit') {
     return <svg {...commonProps}><path d="M12 20h9" /><path d="m16.5 3.5 4 4L8 20H4v-4L16.5 3.5Z" /></svg>;
   }
@@ -489,7 +500,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
         <section className="panel category-manager-panel">
           <div className="category-manager-title-row">
             <div className="category-title-lockup">
-              <span className="settings-flat-icon"><FlatIcon name="category" /></span>
+              <span className="settings-flat-icon category-title-icon"><FlatIcon name="categoryAdd" /></span>
               <div>
                 <h2>{isChildView ? selectedParent.name : 'Add / remove categories'}</h2>
               </div>

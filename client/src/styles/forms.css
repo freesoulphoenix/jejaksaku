@@ -328,8 +328,13 @@ textarea:focus {
   border-radius: 14px;
 }
 
+.category-title-lockup .category-title-icon {
+  color: var(--color-primary);
+}
+
 .category-title-lockup h2 {
-  font-size: 1.05rem;
+  color: var(--color-primary);
+  font-size: 1rem;
   line-height: 1.15;
 }
 
