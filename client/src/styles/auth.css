@@ -60,10 +60,14 @@
   font-size: 2rem;
 }
 
-.auth-heading p:last-child {
+.auth-heading p:not(.section-kicker):last-child {
   margin-bottom: 0;
   color: var(--color-muted);
   line-height: 1.55;
+}
+
+.auth-heading .section-kicker {
+  color: var(--color-primary);
 }
 
 .auth-form {
@@ -166,7 +170,7 @@
 
 .oauth-button {
   display: flex;
-  width: fit-content;
+  width: 100%;
   min-height: 44px;
   align-items: center;
   justify-content: center;
