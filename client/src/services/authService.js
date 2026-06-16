@@ -30,7 +30,10 @@ export async function registerUser(email, password) {
   const client = requireSupabase();
   const { data, error } = await client.auth.signUp({
     email,
-    password
+    password,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl()
+    }
   });
 
   if (error) {
