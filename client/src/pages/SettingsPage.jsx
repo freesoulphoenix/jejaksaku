@@ -384,6 +384,14 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <FlatIcon name="back" />
             <span>Settings</span>
           </button>
+          <button
+            aria-label={isChildView ? 'Add subcategory' : 'Add top category'}
+            className="category-page-add-button"
+            onClick={handleAddCategory}
+            type="button"
+          >
+            <FlatIcon name="plus" />
+          </button>
         </section>
 
         <section className="panel category-manager-panel">
@@ -391,21 +399,11 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <div className="category-title-lockup">
               <span className="settings-flat-icon"><FlatIcon name="category" /></span>
               <div>
-                <p className="section-kicker">Categories</p>
                 <h2>{isChildView ? selectedParent.name : 'Add / remove categories'}</h2>
               </div>
             </div>
 
             <div className="category-header-tools">
-              <button
-                aria-label={isChildView ? 'Add subcategory' : 'Add top category'}
-                className="category-add-button"
-                onClick={handleAddCategory}
-                type="button"
-              >
-                <FlatIcon name="plus" />
-              </button>
-
               {!isChildView && (
                 <label className="category-toggle" aria-label="Show subcategories">
                   <input
