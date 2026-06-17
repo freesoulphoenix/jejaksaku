@@ -130,6 +130,12 @@
   font-size: 1.3rem;
 }
 
+.account-balance-detail {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 4px;
+}
+
 .account-actions {
   grid-column: 1 / -1;
   display: flex;

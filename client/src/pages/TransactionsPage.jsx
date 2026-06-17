@@ -53,6 +53,8 @@ export default function TransactionsPage() {
         transaction.description,
         transaction.notes,
         transaction.accounts?.name,
+        transaction.from_account?.name,
+        transaction.to_account?.name,
         transaction.categories?.name,
         transaction.project_tags?.name
       ].filter(Boolean).join(' ').toLowerCase();

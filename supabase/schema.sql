@@ -15,6 +15,8 @@ create table if not exists public.accounts (
   name text not null,
   type text not null,
   balance numeric default 0,
+  opening_balance numeric default 0,
+  last_reconciled_at timestamptz,
   status text default 'active',
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
@@ -44,16 +46,34 @@ create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
   account_id uuid references public.accounts(id) on delete set null,
+  from_account_id uuid references public.accounts(id) on delete set null,
+  to_account_id uuid references public.accounts(id) on delete set null,
   category_id uuid references public.categories(id) on delete set null,
   project_tag_id uuid references public.project_tags(id) on delete set null,
   transaction_type text not null,
   amount numeric not null,
   description text,
   transaction_date date not null default current_date,
+  transfer_purpose text,
+  transfer_fee numeric default 0,
+  money_direction text,
   notes text,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
-  constraint transactions_type_check check (transaction_type in ('expense', 'income', 'transfer'))
+  constraint transactions_type_check check (transaction_type in ('expense', 'income', 'transfer')),
+  constraint transactions_money_direction_check check (money_direction is null or money_direction in ('in', 'out'))
+);
+
+create table if not exists public.account_reconciliations (
+  id uuid primary key default gen_random_uuid(),
+  user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
+  account_id uuid not null references public.accounts(id) on delete cascade,
+  calculated_balance numeric not null default 0,
+  reconciled_balance numeric not null default 0,
+  difference numeric not null default 0,
+  notes text,
+  reconciled_at timestamptz default now(),
+  created_at timestamptz default now()
 );
 
 create table if not exists public.upcoming_due (
@@ -109,6 +129,12 @@ on public.transactions (transaction_date);
 create index if not exists transactions_account_id_idx
 on public.transactions (account_id);
 
+create index if not exists transactions_from_account_id_idx
+on public.transactions (from_account_id);
+
+create index if not exists transactions_to_account_id_idx
+on public.transactions (to_account_id);
+
 create index if not exists transactions_category_id_idx
 on public.transactions (category_id);
 
@@ -126,6 +152,12 @@ on public.upcoming_due (category_id);
 
 create index if not exists upcoming_due_payment_account_id_idx
 on public.upcoming_due (payment_account_id);
+
+create index if not exists account_reconciliations_user_profile_id_idx
+on public.account_reconciliations (user_profile_id);
+
+create index if not exists account_reconciliations_account_id_idx
+on public.account_reconciliations (account_id);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -173,6 +205,7 @@ alter table public.categories enable row level security;
 alter table public.project_tags enable row level security;
 alter table public.transactions enable row level security;
 alter table public.upcoming_due enable row level security;
+alter table public.account_reconciliations enable row level security;
 
 drop policy if exists "Development access for user profiles" on public.user_profiles;
 create policy "Development access for user profiles" on public.user_profiles
@@ -206,6 +239,12 @@ with check (true);
 
 drop policy if exists "Development access for upcoming due" on public.upcoming_due;
 create policy "Development access for upcoming due" on public.upcoming_due
+for all
+using (true)
+with check (true);
+
+drop policy if exists "Development access for account reconciliations" on public.account_reconciliations;
+create policy "Development access for account reconciliations" on public.account_reconciliations
 for all
 using (true)
 with check (true);

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import AccountCard from '../components/AccountCard.jsx';
 import { createAccount, deleteAccount, getAccounts, updateAccount } from '../services/accountService.js';
+import { getTransactions } from '../services/transactionService.js';
+import { calculateAccountBalances } from '../utils/balance.js';
 
 const accountTypes = ['Cash', 'Bank', 'E-Wallet', 'PayLater', 'Loan', 'Investment'];
 
@@ -8,6 +10,9 @@ const emptyForm = {
   name: '',
   type: 'Bank',
   balance: 0,
+  calculated_balance: 0,
+  opening_balance: 0,
+  reconciliation_notes: '',
   status: 'active'
 };
 
@@ -25,8 +30,11 @@ export default function AccountsPage() {
     setLoading(true);
 
     try {
-      const data = await getAccounts();
-      setAccounts(data);
+      const [accountData, transactionData] = await Promise.all([
+        getAccounts(),
+        getTransactions()
+      ]);
+      setAccounts(calculateAccountBalances(accountData, transactionData));
     } catch (err) {
       setError(err.message || 'Unable to load accounts.');
     } finally {
@@ -48,7 +56,10 @@ export default function AccountsPage() {
     setForm({
       name: account.name,
       type: account.type,
-      balance: account.balance,
+      balance: account.reconciled_balance ?? account.balance,
+      calculated_balance: account.calculated_balance ?? account.balance,
+      opening_balance: account.opening_balance ?? 0,
+      reconciliation_notes: '',
       status: account.status || 'active'
     });
     setEditingAccountId(account.id);
@@ -150,12 +161,22 @@ export default function AccountsPage() {
             </label>
 
             <label className="field-group">
-              Balance
+              Current / Reconciled Balance
               <input
                 onChange={(event) => updateField('balance', event.target.value)}
                 placeholder="0"
                 type="number"
                 value={form.balance}
+              />
+            </label>
+
+            <label className="field-group">
+              Opening Balance
+              <input
+                onChange={(event) => updateField('opening_balance', event.target.value)}
+                placeholder="0"
+                type="number"
+                value={form.opening_balance}
               />
             </label>
 
@@ -169,6 +190,17 @@ export default function AccountsPage() {
                 <option value="inactive">Inactive</option>
               </select>
             </label>
+
+            {editingAccountId && (
+              <label className="field-group span-2">
+                Reconciliation Notes
+                <input
+                  onChange={(event) => updateField('reconciliation_notes', event.target.value)}
+                  placeholder="Optional note for this balance update"
+                  value={form.reconciliation_notes}
+                />
+              </label>
+            )}
 
             <div className="modal-actions span-2">
               <button className="secondary-button" onClick={closeForm} type="button">Cancel</button>

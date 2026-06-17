@@ -2,6 +2,7 @@ import { getAccounts } from './accountService.js';
 import { getCategories } from './categoryService.js';
 import { getProjectTags } from './projectTagService.js';
 import { getTransactions } from './transactionService.js';
+import { calculateAccountBalances, getTransactionAccountName } from '../utils/balance.js';
 
 function getMonthKey(dateString) {
   return String(dateString || '').slice(0, 7);
@@ -20,6 +21,10 @@ function getMonthLabel(monthKey) {
 }
 
 function getExpenseAmount(transaction) {
+  if (transaction.transaction_type === 'transfer') {
+    return Math.abs(Number(transaction.transfer_fee || 0));
+  }
+
   return transaction.transaction_type === 'expense' ? Math.abs(Number(transaction.amount || 0)) : 0;
 }
 
@@ -78,7 +83,7 @@ function buildMonthlySeries(transactions) {
 }
 
 function buildNetWorthTrend(accounts, monthlySeries) {
-  const currentNetWorth = accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
+  const currentNetWorth = accounts.reduce((sum, account) => sum + Number(account.reconciled_balance ?? account.balance ?? 0), 0);
   let runningNetWorth = currentNetWorth - monthlySeries.reduce((sum, item) => sum + item.cashFlow, 0);
 
   return monthlySeries.map((item) => {
@@ -95,7 +100,10 @@ function filterTransactions(transactions, filters) {
     const date = transaction.transaction_date || '';
     const matchesStart = !filters.startDate || date >= filters.startDate;
     const matchesEnd = !filters.endDate || date <= filters.endDate;
-    const matchesAccount = !filters.accountId || transaction.account_id === filters.accountId;
+    const matchesAccount = !filters.accountId
+      || transaction.account_id === filters.accountId
+      || transaction.from_account_id === filters.accountId
+      || transaction.to_account_id === filters.accountId;
     const matchesCategory = !filters.categoryId || transaction.category_id === filters.categoryId;
     const matchesProjectTag = !filters.projectTagId || transaction.project_tag_id === filters.projectTagId;
 
@@ -110,14 +118,15 @@ export async function getReportData(filters = {}) {
     getProjectTags(),
     getTransactions()
   ]);
+  const accountsWithBalances = calculateAccountBalances(accounts, transactions);
   const filteredTransactions = filterTransactions(transactions, filters);
   const monthlySeries = buildMonthlySeries(filteredTransactions);
   const monthlySpending = sumValues(filteredTransactions, getExpenseAmount);
   const monthlyIncome = sumValues(filteredTransactions, getIncomeAmount);
 
   return {
-    accounts,
-    accountBreakdown: groupBy(filteredTransactions, (transaction) => transaction.accounts?.name, getExpenseAmount),
+    accounts: accountsWithBalances,
+    accountBreakdown: groupBy(filteredTransactions, getTransactionAccountName, getExpenseAmount),
     cashFlow: monthlyIncome - monthlySpending,
     categoryBreakdown: groupBy(filteredTransactions, (transaction) => transaction.categories?.name, getExpenseAmount),
     categories,
@@ -125,7 +134,7 @@ export async function getReportData(filters = {}) {
     monthlyIncome,
     monthlySeries,
     monthlySpending,
-    netWorthTrend: buildNetWorthTrend(accounts, monthlySeries),
+    netWorthTrend: buildNetWorthTrend(accountsWithBalances, monthlySeries),
     projectTagBreakdown: groupBy(filteredTransactions, (transaction) => transaction.project_tags?.name, getExpenseAmount),
     projectTags
   };

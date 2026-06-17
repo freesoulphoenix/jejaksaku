@@ -128,6 +128,7 @@ export async function getImportedTransactions(statementImportId) {
 function normalizeImportedRow(row, userProfileId, statementImportId) {
   const cleanDescription = row.clean_description || row.description || row.raw_description || 'Imported transaction';
   const rawDescription = row.raw_description || row.description || cleanDescription;
+  const amount = Number(row.amount || 0);
 
   return {
     user_profile_id: userProfileId,
@@ -136,11 +137,16 @@ function normalizeImportedRow(row, userProfileId, statementImportId) {
     description: cleanDescription,
     raw_description: rawDescription,
     clean_description: cleanDescription,
-    amount: Number(row.amount || 0),
-    transaction_type: row.transaction_type || (Number(row.amount || 0) < 0 ? 'expense' : 'income'),
+    amount,
+    money_direction: row.money_direction || (amount < 0 ? 'out' : amount > 0 ? 'in' : null),
+    transaction_type: row.transaction_type || (amount < 0 ? 'expense' : 'income'),
     account_id: row.account_id || null,
+    from_account_id: row.from_account_id || null,
+    to_account_id: row.to_account_id || null,
     category_id: row.category_id || null,
     project_tag_id: row.project_tag_id || null,
+    transfer_purpose: row.transfer_purpose || null,
+    transfer_fee: Number(row.transfer_fee || 0),
     notes: row.notes || null,
     import_status: row.import_status || 'pending'
   };
@@ -206,8 +212,13 @@ export async function updateImportedTransaction(id, row) {
     transaction_date: row.transaction_date,
     transaction_type: row.transaction_type,
     account_id: row.account_id || null,
-    category_id: row.category_id || null,
+    from_account_id: row.from_account_id || null,
+    to_account_id: row.to_account_id || null,
+    category_id: row.transaction_type === 'transfer' ? null : row.category_id || null,
     project_tag_id: row.project_tag_id || null,
+    transfer_purpose: row.transfer_purpose || null,
+    transfer_fee: Number(row.transfer_fee || 0),
+    money_direction: row.money_direction || null,
     notes: row.notes || null,
     import_status: row.import_status || 'pending'
   };

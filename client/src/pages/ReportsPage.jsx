@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getReportData } from '../services/reportService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
+import { getTransactionAccountName } from '../utils/balance.js';
 import { formatCurrency, formatShortCurrency } from '../utils/format.js';
 
 const emptyFilters = {
@@ -112,7 +113,7 @@ export default function ReportsPage() {
       Date: transaction.transaction_date || '',
       Type: transaction.transaction_type || '',
       Description: transaction.description || '',
-      Account: transaction.accounts?.name || '',
+      Account: getTransactionAccountName(transaction),
       Category: transaction.categories?.name || '',
       'Project Tag': transaction.project_tags?.name || '',
       Amount: Number(transaction.amount || 0)
@@ -161,7 +162,7 @@ export default function ReportsPage() {
                   <td>${transaction.transaction_date || ''}</td>
                   <td>${transaction.transaction_type || ''}</td>
                   <td>${transaction.description || ''}</td>
-                  <td>${transaction.accounts?.name || ''}</td>
+                  <td>${getTransactionAccountName(transaction)}</td>
                   <td>${transaction.categories?.name || ''}</td>
                   <td>${transaction.project_tags?.name || ''}</td>
                   <td>${formatCurrency(transaction.amount || 0)}</td>

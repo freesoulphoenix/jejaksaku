@@ -8,10 +8,14 @@ function getInitialForm(transaction) {
     transaction_type: transaction?.transaction_type || 'expense',
     amount: transaction?.amount || 0,
     account_id: transaction?.account_id || '',
+    from_account_id: transaction?.from_account_id || transaction?.account_id || '',
+    to_account_id: transaction?.to_account_id || '',
     category_id: transaction?.category_id || '',
     project_tag_id: transaction?.project_tag_id || '',
     transaction_date: transaction?.transaction_date || today,
     description: transaction?.description || '',
+    transfer_fee: transaction?.transfer_fee || 0,
+    transfer_purpose: transaction?.transfer_purpose || '',
     notes: transaction?.notes || ''
   };
 }
@@ -27,6 +31,7 @@ export default function AddTransactionModal({
   const [form, setForm] = useState(() => getInitialForm(transaction));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const isTransfer = form.transaction_type === 'transfer';
   const categoryOptions = useMemo(() => (
     getCategoryOptions(categories, form.transaction_type === 'transfer' ? null : form.transaction_type)
   ), [categories, form.transaction_type]);
@@ -34,7 +39,8 @@ export default function AddTransactionModal({
   function updateField(field, value) {
     setForm((currentForm) => ({
       ...currentForm,
-      [field]: value
+      [field]: value,
+      ...(field === 'transaction_type' && value === 'transfer' ? { category_id: '' } : {})
     }));
   }
 
@@ -93,30 +99,83 @@ export default function AddTransactionModal({
               value={form.amount}
             />
           </label>
-          <label className="field-group">
-            Account
-            <select
-              onChange={(event) => updateField('account_id', event.target.value)}
-              value={form.account_id}
-            >
-              <option value="">Select account</option>
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>{account.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field-group">
-            Category
-            <select
-              onChange={(event) => updateField('category_id', event.target.value)}
-              value={form.category_id}
-            >
-              <option value="">Select category</option>
-              {categoryOptions.map((category) => (
-                <option key={category.id} value={category.id}>{category.displayName}</option>
-              ))}
-            </select>
-          </label>
+          {isTransfer ? (
+            <>
+              <label className="field-group">
+                From Account
+                <select
+                  onChange={(event) => updateField('from_account_id', event.target.value)}
+                  required
+                  value={form.from_account_id}
+                >
+                  <option value="">Select source account</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>{account.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-group">
+                To Account
+                <select
+                  onChange={(event) => updateField('to_account_id', event.target.value)}
+                  required
+                  value={form.to_account_id}
+                >
+                  <option value="">Select destination account</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>{account.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-group">
+                Transfer Purpose
+                <input
+                  onChange={(event) => updateField('transfer_purpose', event.target.value)}
+                  placeholder="Top up, savings, repayment"
+                  value={form.transfer_purpose}
+                />
+              </label>
+              <label className="field-group">
+                Transfer Fee
+                <input
+                  min="0"
+                  onChange={(event) => updateField('transfer_fee', event.target.value)}
+                  placeholder="0"
+                  type="number"
+                  value={form.transfer_fee}
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className="field-group">
+                Account
+                <select
+                  onChange={(event) => updateField('account_id', event.target.value)}
+                  required
+                  value={form.account_id}
+                >
+                  <option value="">Select account</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>{account.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-group">
+                Category
+                <select
+                  onChange={(event) => updateField('category_id', event.target.value)}
+                  required
+                  value={form.category_id}
+                >
+                  <option value="">Select category</option>
+                  {categoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>{category.displayName}</option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
           <label className="field-group">
             Project Tag
             <select

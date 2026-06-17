@@ -1,4 +1,5 @@
 import { formatCurrency } from '../utils/format.js';
+import { getTransactionAccountName } from '../utils/balance.js';
 
 function getDisplayAmount(transaction) {
   if (getTransactionType(transaction) === 'expense') {
@@ -18,7 +19,7 @@ function getTransactionTitle(transaction) {
 
 function getTransactionSubtitle(transaction) {
   const category = transaction.categories?.name || transaction.category || getTransactionType(transaction);
-  const account = transaction.accounts?.name || transaction.account || 'No account';
+  const account = getTransactionAccountName(transaction);
   return `${category} - ${account}`;
 }
 

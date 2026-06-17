@@ -1,5 +1,6 @@
 import { getAccounts } from './accountService.js';
 import { getTransactions } from './transactionService.js';
+import { calculateAccountBalances, getTransactionAccountName } from '../utils/balance.js';
 
 const assetTypes = new Set(['Cash', 'Bank', 'E-Wallet', 'Investment']);
 const debtTypes = new Set(['PayLater', 'Loan']);
@@ -40,6 +41,10 @@ function isToday(dateString) {
 }
 
 function getExpenseAmount(transaction) {
+  if (transaction.transaction_type === 'transfer') {
+    return Math.abs(Number(transaction.transfer_fee || 0));
+  }
+
   return transaction.transaction_type === 'expense' ? Math.abs(Number(transaction.amount || 0)) : 0;
 }
 
@@ -65,14 +70,15 @@ export async function getDashboardData() {
     getAccounts(),
     getTransactions()
   ]);
+  const accountsWithBalances = calculateAccountBalances(accounts, transactions);
 
-  const assets = accounts
+  const assets = accountsWithBalances
     .filter((account) => assetTypes.has(account.type))
-    .reduce((sum, account) => sum + Number(account.balance || 0), 0);
+    .reduce((sum, account) => sum + Number(account.reconciled_balance || 0), 0);
 
-  const debt = accounts
+  const debt = accountsWithBalances
     .filter((account) => debtTypes.has(account.type))
-    .reduce((sum, account) => sum + Math.abs(Number(account.balance || 0)), 0);
+    .reduce((sum, account) => sum + Math.abs(Number(account.reconciled_balance || 0)), 0);
 
   const today = startOfToday();
   const week = startOfWeek();
@@ -96,7 +102,7 @@ export async function getDashboardData() {
     .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
 
   return {
-    accounts,
+    accounts: accountsWithBalances,
     transactions,
     recentTransactions: transactions.slice(0, 4),
     summary: {
@@ -110,7 +116,7 @@ export async function getDashboardData() {
       dueThisMonth: 0
     },
     topSpendingCategories: groupExpenseBy(monthTransactions, (transaction) => transaction.categories?.name),
-    spendingByAccount: groupExpenseBy(monthTransactions, (transaction) => transaction.accounts?.name),
+    spendingByAccount: groupExpenseBy(monthTransactions, getTransactionAccountName),
     spendingByProjectTag: groupExpenseBy(monthTransactions, (transaction) => transaction.project_tags?.name)
   };
 }

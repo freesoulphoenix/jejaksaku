@@ -27,7 +27,15 @@ function getFileType(file) {
 }
 
 function isRowImportable(row) {
-  return Boolean(row.amount && row.transaction_date && row.transaction_type && row.account_id);
+  if (!row.amount || !row.transaction_date || !row.transaction_type) {
+    return false;
+  }
+
+  if (row.transaction_type === 'transfer') {
+    return Boolean(row.from_account_id && row.to_account_id);
+  }
+
+  return Boolean(row.account_id && row.category_id);
 }
 
 function formatRetentionDate(value) {
@@ -152,8 +160,34 @@ export default function StatementImportPage() {
 
   function updateRowLocal(rowId, field, value) {
     setPreviewRows((currentRows) => currentRows.map((row) => (
-      row.id === rowId ? { ...row, [field]: value } : row
+      row.id === rowId ? normalizeRowLocalChange(row, field, value) : row
     )));
+  }
+
+  function normalizeRowLocalChange(row, field, value) {
+    const nextRow = { ...row, [field]: value };
+
+    if (field === 'transaction_type' && value === 'transfer') {
+      nextRow.category_id = '';
+
+      if (nextRow.money_direction === 'out' && nextRow.account_id && !nextRow.from_account_id) {
+        nextRow.from_account_id = nextRow.account_id;
+      }
+
+      if (nextRow.money_direction === 'in' && nextRow.account_id && !nextRow.to_account_id) {
+        nextRow.to_account_id = nextRow.account_id;
+      }
+    }
+
+    if (field === 'account_id' && nextRow.transaction_type === 'transfer') {
+      if (nextRow.money_direction === 'out') {
+        nextRow.from_account_id = value;
+      } else if (nextRow.money_direction === 'in') {
+        nextRow.to_account_id = value;
+      }
+    }
+
+    return nextRow;
   }
 
   function setRowStatus(rowId, importStatus) {
@@ -337,6 +371,12 @@ export default function StatementImportPage() {
   async function createTransactionFromImportedRow(row) {
     const transaction = await createTransaction({
       account_id: row.account_id,
+      from_account_id: row.transaction_type === 'transfer'
+        ? row.from_account_id || (row.money_direction === 'out' ? row.account_id : null)
+        : null,
+      to_account_id: row.transaction_type === 'transfer'
+        ? row.to_account_id || (row.money_direction === 'in' ? row.account_id : null)
+        : null,
       category_id: row.category_id,
       project_tag_id: row.project_tag_id,
       imported_transaction_id: row.id,
@@ -344,6 +384,9 @@ export default function StatementImportPage() {
       amount: Math.abs(Number(row.amount || 0)),
       description: row.clean_description || row.description,
       transaction_date: row.transaction_date,
+      transfer_fee: row.transfer_fee || 0,
+      transfer_purpose: row.transfer_purpose || '',
+      money_direction: row.money_direction || null,
       notes: row.notes || (activeImport ? `Imported from ${activeImport.file_name}` : 'Imported from statement')
     });
 
@@ -407,7 +450,7 @@ export default function StatementImportPage() {
             ? { ...row, import_status: 'needs_review' }
             : row
         )));
-        setError(`${invalidRows.length} selected row(s) need amount, date, type, and account before import.`);
+        setError(`${invalidRows.length} selected row(s) need amount, date, type, and valid account/category or transfer accounts before import.`);
       }
 
       if (validRows.length > 0) {
@@ -584,7 +627,7 @@ export default function StatementImportPage() {
                       value={row.clean_description || ''}
                     />
                     <small>
-                      {row.transaction_date || 'No date'} - {row.transaction_type || 'No type'} - {row.import_status}
+                      {row.transaction_date || 'No date'} - {row.transaction_type || 'No type'} - {row.money_direction || 'no direction'} - {row.import_status}
                     </small>
                     {rawVisible && <small>Raw: {row.raw_description || row.description}</small>}
                   </div>
@@ -639,7 +682,7 @@ export default function StatementImportPage() {
                         </select>
                       </label>
                       <label className="field-group">
-                        Account
+                        Source Account
                         <select
                           onChange={(event) => updateRowLocal(row.id, 'account_id', event.target.value)}
                           value={row.account_id || ''}
@@ -650,18 +693,56 @@ export default function StatementImportPage() {
                           ))}
                         </select>
                       </label>
-                      <label className="field-group">
-                        Category
-                        <select
-                          onChange={(event) => updateRowLocal(row.id, 'category_id', event.target.value)}
-                          value={row.category_id || ''}
-                        >
-                          <option value="">Select category</option>
-                          {categoryOptions.map((category) => (
-                            <option key={category.id} value={category.id}>{category.displayName}</option>
-                          ))}
-                        </select>
-                      </label>
+                      {row.transaction_type === 'transfer' ? (
+                        <>
+                          <label className="field-group">
+                            From Account
+                            <select
+                              onChange={(event) => updateRowLocal(row.id, 'from_account_id', event.target.value)}
+                              value={row.from_account_id || ''}
+                            >
+                              <option value="">Select from account</option>
+                              {accounts.map((account) => (
+                                <option key={account.id} value={account.id}>{account.name}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="field-group">
+                            To Account
+                            <select
+                              onChange={(event) => updateRowLocal(row.id, 'to_account_id', event.target.value)}
+                              value={row.to_account_id || ''}
+                            >
+                              <option value="">Select to account</option>
+                              {accounts.map((account) => (
+                                <option key={account.id} value={account.id}>{account.name}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="field-group">
+                            Transfer Fee
+                            <input
+                              min="0"
+                              onChange={(event) => updateRowLocal(row.id, 'transfer_fee', event.target.value)}
+                              type="number"
+                              value={row.transfer_fee || 0}
+                            />
+                          </label>
+                        </>
+                      ) : (
+                        <label className="field-group">
+                          Category
+                          <select
+                            onChange={(event) => updateRowLocal(row.id, 'category_id', event.target.value)}
+                            value={row.category_id || ''}
+                          >
+                            <option value="">Select category</option>
+                            {categoryOptions.map((category) => (
+                              <option key={category.id} value={category.id}>{category.displayName}</option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
                       <label className="field-group">
                         Project Tag
                         <select

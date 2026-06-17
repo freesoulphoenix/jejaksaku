@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
+import { createTransaction } from './transactionService.js';
 
 const RECEIPT_BUCKET = 'receipts';
 
@@ -218,28 +219,17 @@ export async function createTransactionFromReceipt(receiptId, transaction) {
     throw new Error('This receipt already has a transaction.');
   }
 
-  const { data, error } = await client
-    .from('transactions')
-    .insert({
-      user_profile_id: userProfileId,
-      account_id: transaction.account_id || null,
-      category_id: transaction.category_id || null,
-      project_tag_id: transaction.project_tag_id || null,
-      receipt_id: receiptId,
-      transaction_type: 'expense',
-      amount: Number(receipt.total_amount || 0),
-      description: receipt.merchant_name || 'Receipt transaction',
-      transaction_date: receipt.receipt_date || new Date().toISOString().slice(0, 10),
-      notes: 'Created from receipt'
-    })
-    .select('*')
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+  return createTransaction({
+    account_id: transaction.account_id || null,
+    category_id: transaction.category_id || null,
+    project_tag_id: transaction.project_tag_id || null,
+    receipt_id: receiptId,
+    transaction_type: 'expense',
+    amount: Number(receipt.total_amount || 0),
+    description: receipt.merchant_name || 'Receipt transaction',
+    transaction_date: receipt.receipt_date || new Date().toISOString().slice(0, 10),
+    notes: 'Created from receipt'
+  });
 }
 
 export async function deleteReceipt(id) {

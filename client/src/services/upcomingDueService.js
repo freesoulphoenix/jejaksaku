@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
+import { createTransaction } from './transactionService.js';
 
 function requireSupabase() {
   if (!supabase) {
@@ -242,9 +243,7 @@ export async function deleteUpcomingDue(id) {
 }
 
 export async function createDuePaymentTransaction(item) {
-  const { client, userProfileId } = await getScopedQuery();
-  const transactionPayload = {
-    user_profile_id: userProfileId,
+  const transaction = await createTransaction({
     account_id: item.payment_account_id || null,
     category_id: item.category_id || null,
     project_tag_id: null,
@@ -253,17 +252,7 @@ export async function createDuePaymentTransaction(item) {
     description: item.provider ? `${item.title} - ${item.provider}` : item.title,
     transaction_date: getTodayIsoDate(),
     notes: item.notes || null
-  };
-
-  const { data: transaction, error: transactionError } = await client
-    .from('transactions')
-    .insert(transactionPayload)
-    .select('*')
-    .single();
-
-  if (transactionError) {
-    throw transactionError;
-  }
+  });
 
   return linkDuePayment(item.id, transaction.id);
 }

@@ -34,13 +34,15 @@ export async function getAccounts() {
 
 export async function createAccount(account) {
   const { client, userProfileId } = await getScopedQuery();
+  const balance = Number(account.balance || 0);
   const { data, error } = await client
     .from('accounts')
     .insert({
       user_profile_id: userProfileId,
       name: account.name,
       type: account.type,
-      balance: Number(account.balance || 0),
+      balance,
+      opening_balance: balance,
       status: account.status || 'active'
     })
     .select('*')
@@ -55,13 +57,28 @@ export async function createAccount(account) {
 
 export async function updateAccount(id, account) {
   const { client, userProfileId } = await getScopedQuery();
+  const { data: existing, error: existingError } = await client
+    .from('accounts')
+    .select('*')
+    .eq('id', id)
+    .eq('user_profile_id', userProfileId)
+    .single();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const nextBalance = Number(account.balance || 0);
+  const balanceChanged = Number(existing.balance || 0) !== nextBalance;
   const { data, error } = await client
     .from('accounts')
     .update({
       name: account.name,
       type: account.type,
-      balance: Number(account.balance || 0),
-      status: account.status || 'active'
+      balance: nextBalance,
+      opening_balance: Number(account.opening_balance ?? existing.opening_balance ?? 0),
+      status: account.status || 'active',
+      last_reconciled_at: balanceChanged ? new Date().toISOString() : existing.last_reconciled_at
     })
     .eq('id', id)
     .eq('user_profile_id', userProfileId)
@@ -70,6 +87,24 @@ export async function updateAccount(id, account) {
 
   if (error) {
     throw error;
+  }
+
+  if (balanceChanged) {
+    const calculatedBalance = Number(account.calculated_balance ?? existing.balance ?? 0);
+    const { error: reconciliationError } = await client
+      .from('account_reconciliations')
+      .insert({
+        user_profile_id: userProfileId,
+        account_id: id,
+        calculated_balance: calculatedBalance,
+        reconciled_balance: nextBalance,
+        difference: nextBalance - calculatedBalance,
+        notes: account.reconciliation_notes || null
+      });
+
+    if (reconciliationError) {
+      throw reconciliationError;
+    }
   }
 
   return data;
