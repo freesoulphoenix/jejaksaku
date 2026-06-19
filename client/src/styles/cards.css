@@ -869,3 +869,285 @@
     max-width: 175px;
   }
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* =========================================================
+   ACTIVITY PAGE - CATEGORY-STYLE EDITABLE TRANSACTION LIST
+   Activity only. Dashboard transaction list stays unchanged.
+   ========================================================= */
+
+.activity-page {
+  gap: 18px;
+}
+
+.activity-filter-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.55fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.activity-search-field,
+.activity-type-field {
+  position: relative;
+  display: block;
+}
+
+.activity-search-field input,
+.activity-type-field select {
+  min-height: 52px;
+  margin: 0;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.activity-search-field input {
+  padding-right: 46px;
+}
+
+.activity-search-icon {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  color: var(--color-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.activity-list-panel {
+  min-height: 220px;
+  overflow: hidden;
+  padding: 0;
+}
+
+.activity-transaction-list {
+  display: grid;
+  gap: 0;
+}
+
+.activity-transaction-row {
+  position: relative;
+  min-height: 70px;
+  overflow: hidden;
+}
+
+.activity-transaction-row-slide {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: inherit;
+  padding: 10px 16px;
+  border-bottom: 1px solid #eef4fb;
+  background: #ffffff;
+  transition: transform 0.22s ease, background-color 0.18s ease;
+}
+
+.activity-transaction-row:last-child .activity-transaction-row-slide {
+  border-bottom: 0;
+}
+
+.activity-transaction-row.reveal-delete .activity-transaction-row-slide {
+  transform: translateX(-52px);
+}
+
+.activity-transaction-delete-reveal {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  width: 52px;
+  place-items: center;
+  border: 0;
+  color: var(--color-danger);
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.activity-transaction-minus-button,
+.activity-transaction-icon-button,
+.activity-transaction-grip {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.activity-transaction-minus-button {
+  color: var(--color-danger);
+}
+
+.activity-transaction-icon-button,
+.activity-transaction-grip {
+  color: var(--color-muted);
+}
+
+.activity-transaction-main {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.activity-transaction-main strong {
+  overflow: hidden;
+  color: #0f2747;
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-transaction-main small {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-style: italic;
+  font-weight: 800;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-transaction-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.activity-transaction-amount {
+  font-size: 0.84rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.activity-transaction-amount.amount-negative {
+  color: var(--color-danger);
+}
+
+.activity-transaction-amount.amount-positive {
+  color: var(--color-success);
+}
+
+.activity-transaction-amount.amount-transfer {
+  color: var(--color-primary);
+}
+
+.activity-empty-copy {
+  margin: 0;
+  padding: 22px;
+}
+
+.account-page-heading,
+.activity-page-heading {
+  align-items: center;
+}
+
+.account-page-add-button,
+.activity-page-add-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  .account-page-heading,
+  .activity-page-heading {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .page-heading > .account-page-add-button,
+  .page-heading > .activity-page-add-button {
+    min-height: 40px;
+  }
+
+  .activity-page {
+    gap: 14px;
+  }
+
+  .activity-page-heading h1 {
+    font-size: 2rem;
+  }
+
+  .activity-filter-panel {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .activity-search-field input,
+  .activity-type-field select {
+    min-height: 44px;
+    border-radius: 12px;
+    font-size: 0.82rem;
+  }
+
+  .activity-list-panel {
+    min-height: 0;
+    border-radius: 18px;
+  }
+
+  .activity-transaction-row {
+    min-height: 58px;
+  }
+
+  .activity-transaction-row-slide {
+    gap: 7px;
+    padding: 8px 10px;
+  }
+
+  .activity-transaction-main strong {
+    font-size: 0.76rem;
+  }
+
+  .activity-transaction-main small {
+    font-size: 0.6rem;
+  }
+
+  .activity-transaction-tools {
+    gap: 6px;
+  }
+
+  .activity-transaction-amount {
+    font-size: 0.7rem;
+  }
+
+  .activity-transaction-minus-button,
+  .activity-transaction-icon-button,
+  .activity-transaction-grip {
+    width: 22px;
+    height: 22px;
+  }
+
+  .activity-transaction-minus-button svg,
+  .activity-transaction-icon-button svg,
+  .activity-transaction-grip svg {
+    width: 15px;
+    height: 15px;
+  }
+}

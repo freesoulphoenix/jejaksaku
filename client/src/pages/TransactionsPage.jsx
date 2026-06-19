@@ -1,11 +1,54 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AddTransactionModal from '../components/AddTransactionModal.jsx';
 import TransactionList from '../components/TransactionList.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { getProjectTags } from '../services/projectTagService.js';
-import { createTransaction, deleteTransaction, getTransactions, updateTransaction } from '../services/transactionService.js';
-import { findMatchingUnpaidDueForTransaction, linkDuePayment } from '../services/upcomingDueService.js';
+import {
+  createTransaction,
+  deleteTransaction,
+  getTransactions,
+  updateTransaction
+} from '../services/transactionService.js';
+import {
+  findMatchingUnpaidDueForTransaction,
+  linkDuePayment
+} from '../services/upcomingDueService.js';
+
+function FlatIcon({ name }) {
+  const commonProps = {
+    'aria-hidden': 'true',
+    fill: 'none',
+    height: '18',
+    stroke: 'currentColor',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeWidth: '2',
+    viewBox: '0 0 24 24',
+    width: '18'
+  };
+
+  if (name === 'search') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="11" cy="11" r="6.5" />
+        <path d="m16 16 4 4" />
+      </svg>
+    );
+  }
+
+  if (name === 'plus') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 8v8" />
+        <path d="M8 12h8" />
+      </svg>
+    );
+  }
+
+  return null;
+}
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState([]);
@@ -15,16 +58,22 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  async function loadPageData() {
+  const loadPageData = useCallback(async function loadPageData() {
     setError('');
     setLoading(true);
 
     try {
-      const [transactionsData, accountsData, categoriesData, projectTagsData] = await Promise.all([
+      const [
+        transactionsData,
+        accountsData,
+        categoriesData,
+        projectTagsData
+      ] = await Promise.all([
         getTransactions(),
         getAccounts(),
         getCategories(),
@@ -40,15 +89,47 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadPageData();
-  }, []);
+  }, [loadPageData]);
+
+  useEffect(() => {
+    if (!pendingDeleteId) {
+      return undefined;
+    }
+
+    function handlePointerDown(event) {
+      const target = event.target instanceof Element ? event.target : null;
+
+      if (!target) {
+        return;
+      }
+
+      if (
+        target.closest('.activity-transaction-minus-button')
+        || target.closest('.activity-transaction-delete-reveal')
+      ) {
+        return;
+      }
+
+      setPendingDeleteId('');
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [pendingDeleteId]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
-      const matchesType = typeFilter === 'all' || transaction.transaction_type === typeFilter;
+      const matchesType =
+        typeFilter === 'all' ||
+        transaction.transaction_type === typeFilter;
+
       const haystack = [
         transaction.description,
         transaction.notes,
@@ -57,8 +138,14 @@ export default function TransactionsPage() {
         transaction.to_account?.name,
         transaction.categories?.name,
         transaction.project_tags?.name
-      ].filter(Boolean).join(' ').toLowerCase();
-      const matchesSearch = !searchTerm || haystack.includes(searchTerm.toLowerCase());
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const matchesSearch =
+        !searchTerm ||
+        haystack.includes(searchTerm.toLowerCase());
 
       return matchesType && matchesSearch;
     });
@@ -66,11 +153,13 @@ export default function TransactionsPage() {
 
   function openCreateModal() {
     setEditingTransaction(null);
+    setPendingDeleteId('');
     setIsModalOpen(true);
   }
 
   function openEditModal(transaction) {
     setEditingTransaction(transaction);
+    setPendingDeleteId('');
     setIsModalOpen(true);
   }
 
@@ -99,6 +188,8 @@ export default function TransactionsPage() {
   }
 
   async function handleDelete(transaction) {
+    setPendingDeleteId('');
+
     const confirmed = window.confirm('Delete this transaction?');
 
     if (!confirmed) {
@@ -116,41 +207,68 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="page-stack">
-      <section className="page-heading">
+    <div className="page-stack activity-page">
+      <section className="page-heading activity-page-heading">
         <div>
           <p className="section-kicker">Money movement</p>
           <h1>Activity</h1>
         </div>
-        <button className="primary-button" onClick={openCreateModal}>Add Transaction</button>
+
+        <button
+          aria-label="Add transaction"
+          className="category-page-add-button activity-page-add-button"
+          onClick={openCreateModal}
+          type="button"
+        >
+          <FlatIcon name="plus" />
+        </button>
       </section>
 
       {error && <p className="form-message error">{error}</p>}
 
-      <section className="filter-panel">
-        <input
-          onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Search transactions"
-          type="search"
-          value={searchTerm}
-        />
-        <select onChange={(event) => setTypeFilter(event.target.value)} value={typeFilter}>
-          <option value="all">All types</option>
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-          <option value="transfer">Transfer</option>
-        </select>
+      <section className="activity-filter-panel">
+        <label className="activity-search-field">
+          <span className="sr-only">Search transactions</span>
+          <input
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search transactions"
+            type="search"
+            value={searchTerm}
+          />
+          <span className="activity-search-icon">
+            <FlatIcon name="search" />
+          </span>
+        </label>
+
+        <label className="activity-type-field">
+          <span className="sr-only">Filter transaction type</span>
+          <select
+            onChange={(event) => setTypeFilter(event.target.value)}
+            value={typeFilter}
+          >
+            <option value="all">All types</option>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </label>
       </section>
 
-      <article className="panel">
+      <article className="panel activity-list-panel">
         {loading ? (
-          <p className="muted-copy">Loading transactions...</p>
+          <p className="muted-copy activity-empty-copy">Loading transactions...</p>
         ) : (
           <TransactionList
+            activeDeleteId={pendingDeleteId}
             onDelete={handleDelete}
             onEdit={openEditModal}
-            revealDeleteMode
+            onToggleDelete={(transactionId) => {
+              setPendingDeleteId((currentId) => (
+                currentId === transactionId ? '' : transactionId
+              ));
+            }}
             transactions={filteredTransactions}
+            variant="activity"
           />
         )}
       </article>

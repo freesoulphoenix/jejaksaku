@@ -2,26 +2,91 @@ import { useEffect, useState } from 'react';
 import { formatCurrency } from '../utils/format.js';
 import { getTransactionAccountName } from '../utils/balance.js';
 
-function getDisplayAmount(transaction) {
-  if (getTransactionType(transaction) === 'expense') {
-    return -Math.abs(transaction.amount);
+function FlatIcon({ name }) {
+  const commonProps = {
+    'aria-hidden': 'true',
+    fill: 'none',
+    height: '18',
+    stroke: 'currentColor',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeWidth: '2',
+    viewBox: '0 0 24 24',
+    width: '18'
+  };
+
+  if (name === 'edit') {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 20h9" />
+        <path d="m16.5 3.5 4 4L8 20H4v-4L16.5 3.5Z" />
+      </svg>
+    );
   }
 
-  return Number(transaction.amount);
+  if (name === 'grip') {
+    return (
+      <svg {...commonProps}>
+        <path d="M7 8h10" />
+        <path d="M7 12h10" />
+        <path d="M7 16h10" />
+      </svg>
+    );
+  }
+
+  if (name === 'minus') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="12" cy="12" r="8" fill="currentColor" stroke="none" />
+        <path d="M8.5 12h7" stroke="#fff" />
+      </svg>
+    );
+  }
+
+  if (name === 'trash') {
+    return (
+      <svg {...commonProps}>
+        <path d="M4 7h16" />
+        <path d="M10 11v6" />
+        <path d="M14 11v6" />
+        <path d="M6 7l1 14h10l1-14" />
+        <path d="M9 7V4h6v3" />
+      </svg>
+    );
+  }
+
+  return null;
 }
 
 function getTransactionType(transaction) {
   return transaction.transaction_type || transaction.type;
 }
 
+function getDisplayAmount(transaction) {
+  if (getTransactionType(transaction) === 'expense') {
+    return -Math.abs(Number(transaction.amount || 0));
+  }
+
+  return Number(transaction.amount || 0);
+}
+
 function getTransactionTitle(transaction) {
-  return transaction.description || transaction.title || transaction.categories?.name || 'Transaction';
+  return (
+    transaction.description ||
+    transaction.title ||
+    transaction.categories?.name ||
+    'Transaction'
+  );
 }
 
 function getTransactionSubtitle(transaction) {
-  const category = transaction.categories?.name || transaction.category || getTransactionType(transaction);
+  const category =
+    transaction.categories?.name ||
+    transaction.category ||
+    getTransactionType(transaction);
   const account = getTransactionAccountName(transaction);
-  return `${category} - ${account}`;
+
+  return [category, account].filter(Boolean).join(' - ');
 }
 
 function formatDisplayDate(date) {
@@ -36,7 +101,139 @@ function formatDisplayDate(date) {
   });
 }
 
-export default function TransactionList({
+function getAmountLabel(transaction) {
+  const type = getTransactionType(transaction);
+  const amount = Math.abs(Number(transaction.amount || 0));
+
+  if (type === 'expense') {
+    return `-${formatCurrency(amount)}`;
+  }
+
+  if (type === 'income') {
+    return `+${formatCurrency(amount)}`;
+  }
+
+  return formatCurrency(amount);
+}
+
+function getAmountClassName(transaction) {
+  const type = getTransactionType(transaction);
+
+  if (type === 'expense') {
+    return 'amount-negative';
+  }
+
+  if (type === 'income') {
+    return 'amount-positive';
+  }
+
+  return 'amount-transfer';
+}
+
+function ActivityTransactionList({
+  activeDeleteId = '',
+  onDelete,
+  onEdit,
+  onToggleDelete,
+  transactions
+}) {
+  if (transactions.length === 0) {
+    return (
+      <p className="muted-copy activity-empty-copy">
+        No transactions match this filter.
+      </p>
+    );
+  }
+
+  return (
+    <div className="activity-transaction-list">
+      {transactions.map((transaction) => {
+        const subtitle = [
+          formatDisplayDate(transaction.transaction_date) || transaction.date,
+          getTransactionSubtitle(transaction),
+          transaction.project_tags?.name
+        ]
+          .filter(Boolean)
+          .join(' - ');
+
+        const rowClassName = [
+          'activity-transaction-row',
+          activeDeleteId === transaction.id ? 'reveal-delete' : ''
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+        return (
+          <div className={rowClassName} key={transaction.id}>
+            <div className="activity-transaction-row-slide">
+              <button
+                aria-label={
+                  activeDeleteId === transaction.id
+                    ? `Hide delete for ${getTransactionTitle(transaction)}`
+                    : `Show delete for ${getTransactionTitle(transaction)}`
+                }
+                className="activity-transaction-minus-button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleDelete?.(transaction.id);
+                }}
+                type="button"
+              >
+                <FlatIcon name="minus" />
+              </button>
+
+              <div className="activity-transaction-main">
+                <strong>{getTransactionTitle(transaction)}</strong>
+                <small>{subtitle}</small>
+              </div>
+
+              <div className="activity-transaction-tools">
+                <strong
+                  className={[
+                    'activity-transaction-amount',
+                    getAmountClassName(transaction)
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  {getAmountLabel(transaction)}
+                </strong>
+
+                <button
+                  aria-label={`Edit ${getTransactionTitle(transaction)}`}
+                  className="activity-transaction-icon-button"
+                  onClick={() => onEdit?.(transaction)}
+                  type="button"
+                >
+                  <FlatIcon name="edit" />
+                </button>
+
+                <span
+                  aria-hidden="true"
+                  className="activity-transaction-grip"
+                  title="Transactions are ordered by date"
+                >
+                  <FlatIcon name="grip" />
+                </span>
+              </div>
+            </div>
+
+            <button
+              aria-label={`Delete ${getTransactionTitle(transaction)}`}
+              className="activity-transaction-delete-reveal"
+              onClick={() => onDelete?.(transaction)}
+              type="button"
+            >
+              <FlatIcon name="trash" />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DashboardTransactionList({
   activeDeleteId,
   onDelete,
   onEdit,
@@ -108,7 +305,8 @@ export default function TransactionList({
             </div>
             <div className="transaction-meta">
               <strong className={getDisplayAmount(transaction) < 0 ? 'amount-negative' : 'amount-positive'}>
-                {getDisplayAmount(transaction) > 0 && getTransactionType(transaction) !== 'transfer' ? '+' : ''}{formatCurrency(getDisplayAmount(transaction))}
+                {getDisplayAmount(transaction) > 0 && getTransactionType(transaction) !== 'transfer' ? '+' : ''}
+                {formatCurrency(getDisplayAmount(transaction))}
               </strong>
               <span>{formatDisplayDate(transaction.transaction_date) || transaction.date}</span>
               {(onDelete || onEdit) && !revealDeleteMode && (
@@ -160,4 +358,12 @@ export default function TransactionList({
       })}
     </div>
   );
+}
+
+export default function TransactionList({ variant, ...props }) {
+  if (variant === 'activity') {
+    return <ActivityTransactionList {...props} />;
+  }
+
+  return <DashboardTransactionList {...props} />;
 }

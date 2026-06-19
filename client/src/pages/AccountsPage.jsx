@@ -22,6 +22,32 @@ const emptyForm = {
   status: 'active'
 };
 
+function FlatIcon({ name }) {
+  const commonProps = {
+    'aria-hidden': 'true',
+    fill: 'none',
+    height: '18',
+    stroke: 'currentColor',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeWidth: '2',
+    viewBox: '0 0 24 24',
+    width: '18'
+  };
+
+  if (name === 'plus') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 8v8" />
+        <path d="M8 12h8" />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
 function sortAccounts(accounts) {
   return [...accounts].sort((a, b) => {
     const aOrder = Number.isFinite(Number(a.sort_order))
@@ -268,13 +294,20 @@ export default function AccountsPage() {
 
   return (
     <div className="page-stack">
-      <section className="page-heading">
+      <section className="page-heading account-page-heading">
         <div>
           <p className="section-kicker">Wallets and liabilities</p>
           <h1>Accounts</h1>
         </div>
 
-        <button className="primary-button" onClick={openCreateForm}>Add Account</button>
+        <button
+          aria-label="Add account"
+          className="category-page-add-button account-page-add-button"
+          onClick={openCreateForm}
+          type="button"
+        >
+          <FlatIcon name="plus" />
+        </button>
       </section>
 
       {error && <p className="form-message error">{error}</p>}
