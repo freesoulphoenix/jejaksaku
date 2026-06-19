@@ -12,6 +12,7 @@ export default function AccountCard({
 }) {
   const difference = Number(account.balance_difference || 0);
   const isRevealed = isDeleteRevealed ?? deleteRevealActive;
+  const shouldUseReveal = revealDeleteMode || Boolean(onToggleDelete) || isDeleteRevealed !== undefined;
 
   function handleToggleDelete() {
     if (onToggleDelete) {
@@ -41,13 +42,13 @@ export default function AccountCard({
           <span>Last reconciled: {new Date(account.last_reconciled_at).toLocaleDateString('id-ID')}</span>
         )}
       </div>
-      {(onDelete || onEdit) && !revealDeleteMode && (
+      {(onDelete || onEdit) && !shouldUseReveal && (
         <div className="account-actions">
           {onEdit && <button className="text-button" onClick={() => onEdit(account)} type="button">Edit</button>}
           {onDelete && <button className="text-button danger" onClick={() => onDelete(account)} type="button">Delete</button>}
         </div>
       )}
-      {onEdit && revealDeleteMode && (
+      {onEdit && shouldUseReveal && (
         <div className="account-actions">
           <button className="text-button apple-edit-control dashboard-row-control" onClick={() => onEdit(account)} type="button">
             Edit
@@ -57,7 +58,7 @@ export default function AccountCard({
     </>
   );
 
-  if (revealDeleteMode) {
+  if (shouldUseReveal) {
     return (
       <div className={`apple-edit-row account-edit-row ${isRevealed ? 'reveal-delete' : ''}`}>
         {onDelete && (

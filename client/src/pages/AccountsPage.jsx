@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import AccountCard from '../components/AccountCard.jsx';
 import { createAccount, deleteAccount, getAccounts, updateAccount } from '../services/accountService.js';
 import { getTransactions } from '../services/transactionService.js';
@@ -20,13 +20,13 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
-  const [activeDeleteId, setActiveDeleteId] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  async function loadAccounts() {
+  const loadAccounts = useCallback(async function loadAccounts() {
     setError('');
     setLoading(true);
 
@@ -41,21 +41,21 @@ export default function AccountsPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadAccounts();
   }, []);
 
   useEffect(() => {
-    if (!activeDeleteId) {
+    loadAccounts();
+  }, [loadAccounts]);
+
+  useEffect(() => {
+    if (!pendingDeleteId) {
       return undefined;
     }
 
     function collapseRevealedRow(event) {
-      const target = event.target instanceof Element ? event.target : null;
+      const target = event.target;
 
-      if (!target) {
+      if (!target || typeof target.closest !== 'function') {
         return;
       }
 
@@ -67,17 +67,17 @@ export default function AccountsPage() {
         return;
       }
 
-      setActiveDeleteId('');
+      setPendingDeleteId('');
     }
 
     document.addEventListener('pointerdown', collapseRevealedRow);
     return () => document.removeEventListener('pointerdown', collapseRevealedRow);
-  }, [activeDeleteId]);
+  }, [pendingDeleteId]);
 
   function openCreateForm() {
     setForm(emptyForm);
     setEditingAccountId(null);
-    setActiveDeleteId('');
+    setPendingDeleteId('');
     setIsFormOpen(true);
   }
 
@@ -92,7 +92,7 @@ export default function AccountsPage() {
       status: account.status || 'active'
     });
     setEditingAccountId(account.id);
-    setActiveDeleteId('');
+    setPendingDeleteId('');
     setIsFormOpen(true);
   }
 
@@ -138,7 +138,7 @@ export default function AccountsPage() {
     }
 
     setError('');
-    setActiveDeleteId('');
+    setPendingDeleteId('');
 
     try {
       await deleteAccount(account.id);
@@ -249,12 +249,15 @@ export default function AccountsPage() {
         {accounts.map((account) => (
           <AccountCard
             account={account}
-            deleteRevealActive={activeDeleteId === account.id}
+            isDeleteRevealed={pendingDeleteId === account.id}
             key={account.id}
             onDelete={handleDelete}
             onEdit={openEditForm}
-            onRevealDelete={() => setActiveDeleteId((currentId) => (currentId === account.id ? '' : account.id))}
-            revealDeleteMode
+            onToggleDelete={(accountId) => {
+              setPendingDeleteId((currentId) => (
+                currentId === accountId ? '' : accountId
+              ));
+            }}
           />
         ))}
       </section>
