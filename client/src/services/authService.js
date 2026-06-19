@@ -95,7 +95,7 @@ export async function loginUser(email, password) {
 
   if (error) {
     if (isInvalidLoginError(error)) {
-      throw new Error('Account does not exist. Please create one, or check your email and password.');
+      throw new Error('Account does not exist. Please sign up.');
     }
 
     throw error;
