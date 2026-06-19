@@ -32,6 +32,11 @@ function getExistingAccountMessage(email) {
   return `An account already exists for ${email}. Please log in instead, or use Continue with Google if you created it with Google.`;
 }
 
+function isInvalidLoginError(error) {
+  const message = error?.message?.toLowerCase() || '';
+  return message.includes('invalid login credentials');
+}
+
 export function validatePasswordStrength(password) {
   return {
     hasLowercase: /[a-z]/.test(password),
@@ -89,6 +94,10 @@ export async function loginUser(email, password) {
   });
 
   if (error) {
+    if (isInvalidLoginError(error)) {
+      throw new Error('Account does not exist. Please create one, or check your email and password.');
+    }
+
     throw error;
   }
 
