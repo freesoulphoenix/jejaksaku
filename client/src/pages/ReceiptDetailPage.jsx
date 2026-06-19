@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { findSmartMatch } from '../services/matchingService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
 
@@ -7,6 +8,7 @@ export default function ReceiptDetailPage({
   categories = [],
   onBack,
   onCreateTransaction,
+  onLinkTransaction,
   onRunOcr,
   onSaveReview,
   projectTags = [],
@@ -29,11 +31,15 @@ export default function ReceiptDetailPage({
   const [processing, setProcessing] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [error, setError] = useState('');
+  const [touchedFields, setTouchedFields] = useState(new Set());
+  const [pendingDuplicate, setPendingDuplicate] = useState(null);
+  const [pendingTransaction, setPendingTransaction] = useState(null);
   const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
   const fileExpired = Boolean(receipt.file_deleted_at);
   const canPreviewFile = Boolean(receipt.image_url && !fileExpired);
 
   function updateField(field, value) {
+    setTouchedFields((currentFields) => new Set(currentFields).add(field));
     setForm((currentForm) => ({
       ...currentForm,
       [field]: value
@@ -66,7 +72,32 @@ export default function ReceiptDetailPage({
     setProcessing(true);
 
     try {
-      await onRunOcr(receipt);
+      const processedReceipt = await onRunOcr(receipt);
+      const nextValues = {
+        merchant_name: processedReceipt?.merchant_name || '',
+        receipt_date: processedReceipt?.receipt_date || '',
+        total_amount: processedReceipt?.total_amount || 0
+      };
+
+      if (!nextValues.merchant_name && !nextValues.receipt_date && !nextValues.total_amount) {
+        setError('No usable OCR values were found. You can still enter receipt details manually.');
+        return;
+      }
+
+      setForm((currentForm) => ({
+        merchant_name: touchedFields.has('merchant_name') ? currentForm.merchant_name : nextValues.merchant_name || currentForm.merchant_name,
+        receipt_date: touchedFields.has('receipt_date') ? currentForm.receipt_date : nextValues.receipt_date || currentForm.receipt_date,
+        total_amount: touchedFields.has('total_amount') ? currentForm.total_amount : nextValues.total_amount || currentForm.total_amount
+      }));
+
+      const suggestedCategoryId = getSuggestedCategoryId(nextValues.merchant_name, categoryOptions);
+
+      if (suggestedCategoryId && !transactionForm.category_id) {
+        setTransactionForm((currentForm) => ({
+          ...currentForm,
+          category_id: suggestedCategoryId
+        }));
+      }
     } catch (err) {
       setError(err.message || 'Unable to run OCR.');
     } finally {
@@ -80,12 +111,63 @@ export default function ReceiptDetailPage({
     setCreatingTransaction(true);
 
     try {
+      const match = await findSmartMatch({
+        account_id: transactionForm.account_id,
+        amount: form.total_amount,
+        clean_description: form.merchant_name,
+        description: form.merchant_name,
+        transaction_date: form.receipt_date,
+        transaction_type: 'expense'
+      });
+
+      if (match?.type === 'existing_transaction') {
+        setPendingDuplicate(match);
+        setPendingTransaction({ ...transactionForm });
+        return;
+      }
+
       await onCreateTransaction(receipt.id, transactionForm);
     } catch (err) {
       setError(err.message || 'Unable to create transaction from receipt.');
     } finally {
       setCreatingTransaction(false);
     }
+  }
+
+  async function handleKeepBoth() {
+    setPendingDuplicate(null);
+    const transaction = pendingTransaction || transactionForm;
+    setPendingTransaction(null);
+    setCreatingTransaction(true);
+
+    try {
+      await onCreateTransaction(receipt.id, transaction);
+    } catch (err) {
+      setError(err.message || 'Unable to create transaction from receipt.');
+    } finally {
+      setCreatingTransaction(false);
+    }
+  }
+
+  async function handleLinkDuplicate() {
+    setError('');
+    setCreatingTransaction(true);
+
+    try {
+      await onLinkTransaction(receipt.id, pendingDuplicate.target.id);
+      setPendingDuplicate(null);
+      setPendingTransaction(null);
+    } catch (err) {
+      setError(err.message || 'Unable to link receipt to existing transaction.');
+    } finally {
+      setCreatingTransaction(false);
+    }
+  }
+
+  function handleNotDuplicate() {
+    setPendingDuplicate(null);
+    setPendingTransaction(null);
+    setCreatingTransaction(false);
   }
 
   return (
@@ -256,6 +338,51 @@ export default function ReceiptDetailPage({
           )}
         </article>
       </section>
+
+      {pendingDuplicate && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="receipt-duplicate-title">
+            <div className="modal-header">
+              <div>
+                <p className="section-kicker">Possible duplicate</p>
+                <h2 id="receipt-duplicate-title">Review matching transaction</h2>
+              </div>
+              <button className="icon-button" aria-label="Close duplicate review" onClick={handleNotDuplicate}>x</button>
+            </div>
+            <p className="muted-copy">{pendingDuplicate.message}</p>
+            <div className="modal-actions">
+              <button className="primary-button" disabled={creatingTransaction} onClick={handleLinkDuplicate} type="button">
+                Link as same transaction
+              </button>
+              <button className="secondary-button" disabled={creatingTransaction} onClick={handleKeepBoth} type="button">
+                Keep both
+              </button>
+              <button className="secondary-button" disabled={creatingTransaction} onClick={handleNotDuplicate} type="button">
+                Not a duplicate
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
+}
+
+function getSuggestedCategoryId(merchantName, categoryOptions) {
+  const text = String(merchantName || '').toLowerCase();
+  const rules = [
+    { pattern: /(coffee|kopi|cafe|restaurant|warung|food|drink|makan)/, category: 'Food & Drink' },
+    { pattern: /(grocery|mart|supermarket|fresh|produce)/, category: 'Groceries' },
+    { pattern: /(grab|gojek|taxi|parking|fuel|toll|transport)/, category: 'Transport' },
+    { pattern: /(doctor|clinic|pharmacy|medicine|health)/, category: 'Health' },
+    { pattern: /(netflix|spotify|subscription|cloud|app)/, category: 'Subscription' }
+  ];
+  const matchedRule = rules.find((rule) => rule.pattern.test(text));
+
+  if (!matchedRule) {
+    return '';
+  }
+
+  const option = categoryOptions.find((category) => category.displayName.includes(matchedRule.category));
+  return option?.id || '';
 }

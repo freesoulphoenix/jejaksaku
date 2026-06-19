@@ -7,6 +7,8 @@ import { parseStatementFile } from '../services/statementParserService.js';
 import {
   bulkUpdateImportedTransactions,
   createStatementImport,
+  deleteStatementImportFile,
+  findDuplicateStatementImport,
   getImportedTransactions,
   getStatementImports,
   saveImportedTransactions,
@@ -72,6 +74,7 @@ export default function StatementImportPage() {
   const [projectTags, setProjectTags] = useState([]);
   const [file, setFile] = useState(null);
   const [sourceName, setSourceName] = useState('BCA');
+  const [importSort, setImportSort] = useState('latest');
   const [editingIds, setEditingIds] = useState(new Set());
   const [rawVisibleIds, setRawVisibleIds] = useState(new Set());
   const [pendingMatch, setPendingMatch] = useState(null);
@@ -79,6 +82,14 @@ export default function StatementImportPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
+
+  const sortedImports = useMemo(() => (
+    [...imports].sort((first, second) => {
+      const firstTime = new Date(first.created_at || 0).getTime();
+      const secondTime = new Date(second.created_at || 0).getTime();
+      return importSort === 'oldest' ? firstTime - secondTime : secondTime - firstTime;
+    })
+  ), [importSort, imports]);
 
   const activeRows = useMemo(() => (
     previewRows.filter((row) => activeStatuses.has(row.import_status))
@@ -280,7 +291,25 @@ export default function StatementImportPage() {
     setSaving(true);
 
     try {
-      const statementImport = await createStatementImport(file, sourceName);
+      const duplicate = await findDuplicateStatementImport(file, sourceName);
+
+      if (duplicate.existing) {
+        const uploadedAt = duplicate.existing.created_at
+          ? new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(duplicate.existing.created_at))
+          : 'an earlier upload';
+        const shouldContinue = window.confirm(
+          `Possible duplicate file found\n\nExisting file: ${duplicate.existing.file_name}\nUploaded: ${uploadedAt}\n\nCancel upload or choose OK to upload anyway.`
+        );
+
+        if (!shouldContinue) {
+          setSaving(false);
+          return;
+        }
+      }
+
+      const statementImport = await createStatementImport(file, sourceName, {
+        fileHash: duplicate.fileHash
+      });
       const rows = await parseStatementFile(file, sourceName);
       const savedRows = await saveImportedTransactions(statementImport.id, rows);
       setFile(null);
@@ -291,6 +320,34 @@ export default function StatementImportPage() {
       await loadImports();
     } catch (err) {
       setError(err.message || 'Unable to upload and parse statement.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteImportFile(item) {
+    const confirmed = window.confirm(
+      `Delete the source file "${item.file_name}" now?\n\nImported rows, linked transactions, and report data will remain. Only the uploaded statement/spreadsheet file is removed from storage.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setSaving(true);
+
+    try {
+      const updatedImport = await deleteStatementImportFile(item);
+      setImports((currentImports) => currentImports.map((currentItem) => (
+        currentItem.id === updatedImport.id ? updatedImport : currentItem
+      )));
+
+      if (activeImport?.id === updatedImport.id) {
+        setActiveImport(updatedImport);
+      }
+    } catch (err) {
+      setError(err.message || 'Unable to delete uploaded file.');
     } finally {
       setSaving(false);
     }
@@ -802,6 +859,13 @@ export default function StatementImportPage() {
           <h2>Import History</h2>
           <span className="summary-pill">{imports.length}</span>
         </div>
+        <label className="field-group compact-field">
+          Sort uploads
+          <select onChange={(event) => setImportSort(event.target.value)} value={importSort}>
+            <option value="latest">Latest upload</option>
+            <option value="oldest">Oldest upload</option>
+          </select>
+        </label>
 
         {loading ? (
           <p className="muted-copy">Loading imports...</p>
@@ -809,7 +873,7 @@ export default function StatementImportPage() {
           <p className="muted-copy">No statement files uploaded yet.</p>
         ) : (
           <div className="statement-import-list">
-            {imports.map((item) => {
+            {sortedImports.map((item) => {
               const retentionText = getFileRetentionText(item);
 
               return (
@@ -823,6 +887,9 @@ export default function StatementImportPage() {
                     <button className="text-button" onClick={() => openImportPreview(item)}>Preview</button>
                     {item.file_url && !item.file_deleted_at && (
                       <a className="text-button" href={item.file_url} rel="noreferrer" target="_blank">Open</a>
+                    )}
+                    {!item.file_deleted_at && (
+                      <button className="text-button danger" disabled={saving} onClick={() => handleDeleteImportFile(item)}>Delete File</button>
                     )}
                   </div>
                 </div>
@@ -859,10 +926,18 @@ export default function StatementImportPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="primary-button" disabled={saving} onClick={handleConfirmMatch}>Confirm</button>
-              <button className="secondary-button" disabled={saving} onClick={handleIgnoreMatch}>
-                {pendingMatch.match.type === 'existing_transaction' ? 'Import Anyway' : 'Ignore'}
-              </button>
+              {pendingMatch.match.type === 'existing_transaction' ? (
+                <>
+                  <button className="primary-button" disabled={saving} onClick={handleConfirmMatch}>Link as same transaction</button>
+                  <button className="secondary-button" disabled={saving} onClick={handleIgnoreMatch}>Keep both</button>
+                  <button className="secondary-button" disabled={saving} onClick={() => setPendingMatch(null)}>Not a duplicate</button>
+                </>
+              ) : (
+                <>
+                  <button className="primary-button" disabled={saving} onClick={handleConfirmMatch}>Confirm</button>
+                  <button className="secondary-button" disabled={saving} onClick={handleIgnoreMatch}>Ignore</button>
+                </>
+              )}
             </div>
           </section>
         </div>

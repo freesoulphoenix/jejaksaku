@@ -237,6 +237,11 @@ textarea:focus {
   gap: 12px;
 }
 
+.delete-confirmation-input::placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 .settings-panel-title {
   display: flex;
   align-items: center;

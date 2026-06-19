@@ -120,6 +120,10 @@ export async function runReceiptOcr(receipt) {
     const result = await worker.recognize(receipt.image_url);
     const extracted = extractReceiptFields(result.data.text || '');
 
+    if (!extracted.merchant_name && !extracted.receipt_date && !extracted.total_amount) {
+      throw new Error('No usable OCR values were found. You can still enter receipt details manually.');
+    }
+
     return updateReceiptReview(receipt.id, {
       merchant_name: extracted.merchant_name || receipt.merchant_name || '',
       receipt_date: extracted.receipt_date || receipt.receipt_date || '',

@@ -92,6 +92,23 @@
     padding: 14px 12px calc(168px + env(safe-area-inset-bottom));
   }
 
+  @media (display-mode: standalone) {
+    .top-header {
+      position: fixed;
+      top: 0;
+    }
+
+    .mobile-nav {
+      position: fixed;
+      bottom: 0;
+    }
+
+    .main-content {
+      padding-top: calc(18px + env(safe-area-inset-top));
+      padding-bottom: calc(188px + env(safe-area-inset-bottom));
+    }
+  }
+
   .page-stack {
     gap: 14px;
   }

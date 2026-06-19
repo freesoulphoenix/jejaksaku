@@ -23,6 +23,22 @@ function getFileExtension(file) {
   return file.name.split('.').pop()?.toLowerCase() || 'file';
 }
 
+function normalizeFileName(fileName) {
+  return String(fileName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+async function getFileHash(file) {
+  if (!file?.arrayBuffer || !crypto.subtle) {
+    return '';
+  }
+
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  return [...new Uint8Array(hashBuffer)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 function getStatementPath(userProfileId, file) {
   const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
   return `${userProfileId}/${id}.${getFileExtension(file)}`;
@@ -63,13 +79,60 @@ export async function getStatementImports() {
   return data;
 }
 
-export async function createStatementImport(file, bankName = '') {
+export async function findDuplicateStatementImport(file, bankName = '') {
+  const { client, userProfileId } = await getScopedClient();
+  const fileHash = await getFileHash(file);
+  const normalizedName = normalizeFileName(file.name);
+  const fileSize = Number(file.size || 0);
+  const normalizedBankName = bankName || null;
+
+  if (fileHash) {
+    const { data, error } = await client
+      .from('statement_imports')
+      .select('*')
+      .eq('user_profile_id', userProfileId)
+      .eq('file_hash', fileHash)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      throw error;
+    }
+
+    if (data?.[0]) {
+      return { existing: data[0], fileHash };
+    }
+  }
+
+  let fingerprintQuery = client
+    .from('statement_imports')
+    .select('*')
+    .eq('user_profile_id', userProfileId)
+    .eq('file_size', fileSize)
+    .order('created_at', { ascending: false });
+
+  fingerprintQuery = normalizedBankName
+    ? fingerprintQuery.eq('bank_name', normalizedBankName)
+    : fingerprintQuery.is('bank_name', null);
+
+  const { data, error } = await fingerprintQuery;
+
+  if (error) {
+    throw error;
+  }
+
+  const existing = (data || []).find((item) => normalizeFileName(item.file_name) === normalizedName);
+  return existing ? { existing, fileHash } : { existing: null, fileHash };
+}
+
+export async function createStatementImport(file, bankName = '', options = {}) {
   const { client, userProfileId } = await getScopedClient();
 
   if (!file) {
     throw new Error('Choose a statement file first.');
   }
 
+  const fileHash = options.fileHash || await getFileHash(file);
   const uploadedFile = await uploadStatementFile(client, userProfileId, file);
   const { data, error } = await client
     .from('statement_imports')
@@ -78,10 +141,47 @@ export async function createStatementImport(file, bankName = '') {
       bank_name: bankName || null,
       file_name: file.name,
       file_type: getFileExtension(file),
+      file_size: Number(file.size || 0),
+      file_hash: fileHash || null,
       file_url: uploadedFile.publicUrl,
       file_storage_path: uploadedFile.path,
       import_status: 'uploaded'
     })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteStatementImportFile(statementImport) {
+  const { client, userProfileId } = await getScopedClient();
+
+  if (!statementImport?.id) {
+    throw new Error('Choose an uploaded statement first.');
+  }
+
+  if (statementImport.file_storage_path) {
+    const { error: storageError } = await client.storage
+      .from(STATEMENT_BUCKET)
+      .remove([statementImport.file_storage_path]);
+
+    if (storageError) {
+      throw storageError;
+    }
+  }
+
+  const { data, error } = await client
+    .from('statement_imports')
+    .update({
+      file_deleted_at: new Date().toISOString(),
+      file_url: null
+    })
+    .eq('id', statementImport.id)
+    .eq('user_profile_id', userProfileId)
     .select('*')
     .single();
 

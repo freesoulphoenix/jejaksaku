@@ -597,7 +597,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     setDeleteError('');
 
     if (deleteConfirmation !== 'CONFIRM DELETE') {
-      setDeleteError('Type CONFIRM DELETE to confirm account deletion.');
+      setDeleteError('Type "CONFIRM DELETE" to continue.');
       return;
     }
 
@@ -702,6 +702,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
                   Confirmation
                   <input
                     autoComplete="off"
+                    className="delete-confirmation-input"
                     onChange={(event) => setDeleteConfirmation(event.target.value)}
                     placeholder="CONFIRM DELETE"
                     value={deleteConfirmation}

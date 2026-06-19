@@ -3,6 +3,7 @@ import BrandMark from '../components/BrandMark.jsx';
 import PasswordGuidance from '../components/PasswordGuidance.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { isStrongPassword } from '../services/authService.js';
 
 export default function RegisterPage({ onShowLogin }) {
   const { loginWithGoogle, register } = useAuth();
@@ -19,8 +20,13 @@ export default function RegisterPage({ onShowLogin }) {
     setError('');
     setMessage('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    if (!isStrongPassword(password)) {
+      setError('PASSWORD MUST FOLLOW THE GUIDELINES');
+      return;
+    }
+
+    if (password && confirmPassword && password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 

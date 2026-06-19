@@ -232,6 +232,24 @@ export async function createTransactionFromReceipt(receiptId, transaction) {
   });
 }
 
+export async function linkReceiptToTransaction(receiptId, transactionId) {
+  const { client, userProfileId } = await getScopedClient();
+  const { data, error } = await client
+    .from('transactions')
+    .update({ receipt_id: receiptId })
+    .eq('id', transactionId)
+    .eq('user_profile_id', userProfileId)
+    .is('receipt_id', null)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export async function deleteReceipt(id) {
   const { client, userProfileId } = await getScopedClient();
   const { data: receipt, error: fetchError } = await client

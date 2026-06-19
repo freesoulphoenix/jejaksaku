@@ -115,8 +115,26 @@ function OfflineNotice() {
   );
 }
 
+function EmailVerificationSuccessPage({ onLogin }) {
+  return (
+    <main className="auth-shell">
+      <section className="auth-card compact">
+        <BrandMark />
+        <div className="auth-heading">
+          <p className="section-kicker">Email verified</p>
+          <h1>Your email is confirmed</h1>
+          <p>You can now log in to Dompet Daily with your email and password.</p>
+        </div>
+        <button className="primary-button auth-submit" onClick={onLogin} type="button">
+          Login
+        </button>
+      </section>
+    </main>
+  );
+}
+
 function ProtectedApp() {
-  const { deleteAccount, loading, passwordRecovery, user, logout } = useAuth();
+  const { deleteAccount, emailVerificationSuccess, finishEmailVerification, loading, passwordRecovery, user, logout } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [authPage, setAuthPage] = useState('login');
@@ -174,6 +192,17 @@ function ProtectedApp() {
           <p>Checking your Dompet Daily session...</p>
         </div>
       </div>
+    );
+  }
+
+  if (emailVerificationSuccess) {
+    return (
+      <EmailVerificationSuccessPage
+        onLogin={() => {
+          finishEmailVerification();
+          setAuthPage('login');
+        }}
+      />
     );
   }
 

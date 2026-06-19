@@ -4,7 +4,7 @@ import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { runReceiptOcr } from '../services/ocrService.js';
 import { getProjectTags } from '../services/projectTagService.js';
-import { createReceipt, createTransactionFromReceipt, deleteReceipt, getReceipt, getReceipts, updateReceiptReview } from '../services/receiptService.js';
+import { createReceipt, createTransactionFromReceipt, deleteReceipt, getReceipt, getReceipts, linkReceiptToTransaction, updateReceiptReview } from '../services/receiptService.js';
 import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
 
 const today = new Date().toISOString().slice(0, 10);
@@ -282,6 +282,7 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
     const detailedReceipt = await getReceipt(processedReceipt.id);
     setSelectedReceipt(detailedReceipt);
     await loadReceipts();
+    return detailedReceipt;
   }
 
   async function handleSaveReview(id, review) {
@@ -301,6 +302,13 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
     await loadReceipts();
   }
 
+  async function handleLinkReceiptTransaction(receiptId, transactionId) {
+    await linkReceiptToTransaction(receiptId, transactionId);
+    const detailedReceipt = await getReceipt(receiptId);
+    setSelectedReceipt(detailedReceipt);
+    await loadReceipts();
+  }
+
   if (selectedReceipt) {
     return (
       <ReceiptDetailPage
@@ -310,6 +318,7 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
         onCreateTransaction={handleCreateTransaction}
         onRunOcr={handleRunOcr}
         onSaveReview={handleSaveReview}
+        onLinkTransaction={handleLinkReceiptTransaction}
         projectTags={projectTags}
         receipt={selectedReceipt}
       />

@@ -34,6 +34,26 @@ function sameAmount(firstAmount, secondAmount) {
   return Math.abs(Math.abs(Number(firstAmount || 0)) - Math.abs(Number(secondAmount || 0))) < 0.01;
 }
 
+function getDirection(value) {
+  if (value.money_direction) {
+    return value.money_direction;
+  }
+
+  if (value.transaction_type === 'income') {
+    return 'in';
+  }
+
+  if (value.transaction_type === 'expense') {
+    return 'out';
+  }
+
+  return Number(value.amount || 0) < 0 ? 'out' : 'in';
+}
+
+function hasCompatibleDirection(first, second) {
+  return getDirection(first) === getDirection(second);
+}
+
 export async function findSmartMatch(importedTransaction) {
   const userProfileId = await getCurrentUserProfileId();
   const client = requireSupabase();
@@ -71,6 +91,7 @@ export async function findSmartMatch(importedTransaction) {
   const existingTransaction = transactionsResponse.data.find((transaction) => (
     sameAmount(transaction.amount, importedTransaction.amount) &&
     (!importedTransaction.account_id || transaction.account_id === importedTransaction.account_id) &&
+    hasCompatibleDirection(transaction, importedTransaction) &&
     dateDistanceInDays(transaction.transaction_date, importedTransaction.transaction_date) <= 3 &&
     hasSimilarMerchant(transaction.description, importedTransaction.clean_description || importedTransaction.description)
   ));

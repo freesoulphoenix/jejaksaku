@@ -13,6 +13,12 @@ function getAuthRedirectUrl() {
   return new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString();
 }
 
+function getAuthRedirectUrlWithMode(mode) {
+  const url = new URL(import.meta.env.BASE_URL || '/', window.location.origin);
+  url.searchParams.set('auth_flow', mode);
+  return url.toString();
+}
+
 function isExistingAccountError(error) {
   const message = error?.message?.toLowerCase() || '';
   return message.includes('already registered')
@@ -45,14 +51,14 @@ export async function registerUser(email, password) {
   const client = requireSupabase();
 
   if (!isStrongPassword(password)) {
-    throw new Error('Password must include uppercase, lowercase, number, special character, and at least 8 characters.');
+    throw new Error('PASSWORD MUST FOLLOW THE GUIDELINES');
   }
 
   const { data, error } = await client.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: getAuthRedirectUrl()
+      emailRedirectTo: getAuthRedirectUrlWithMode('email_verification')
     }
   });
 
@@ -120,7 +126,23 @@ export async function logoutUser() {
 
 export async function deleteCurrentAccount() {
   const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  const accessToken = sessionData.session?.access_token;
+
+  if (!accessToken) {
+    throw new Error('Missing user session. Please log in again before deleting your account.');
+  }
+
   const { data, error } = await client.functions.invoke('delete-account', {
+    body: { confirm: 'CONFIRM DELETE' },
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
     method: 'POST'
   });
 
@@ -152,7 +174,7 @@ export async function getCurrentUser() {
 export async function sendPasswordReset(email) {
   const client = requireSupabase();
   const { data, error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: getAuthRedirectUrl()
+    redirectTo: getAuthRedirectUrlWithMode('password_reset')
   });
 
   if (error) {
@@ -166,7 +188,7 @@ export async function updatePassword(password) {
   const client = requireSupabase();
 
   if (!isStrongPassword(password)) {
-    throw new Error('Password must include uppercase, lowercase, number, special character, and at least 8 characters.');
+    throw new Error('PASSWORD MUST FOLLOW THE GUIDELINES');
   }
 
   const { data, error } = await client.auth.updateUser({

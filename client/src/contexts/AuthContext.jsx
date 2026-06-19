@@ -8,12 +8,36 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [emailVerificationSuccess, setEmailVerificationSuccess] = useState(false);
+
+  function getAuthFlow() {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    return searchParams.get('auth_flow') || hashParams.get('auth_flow') || hashParams.get('type') || searchParams.get('type');
+  }
+
+  function cleanAuthFlowUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('auth_flow');
+    url.searchParams.delete('type');
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+  }
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadUser() {
       try {
+        if (getAuthFlow() === 'email_verification' && supabaseConfigReady) {
+          await supabase.auth.signOut().catch(() => {});
+          cleanAuthFlowUrl();
+          if (isMounted) {
+            setEmailVerificationSuccess(true);
+            setUser(null);
+          }
+          return;
+        }
+
         const currentUser = await getCurrentUser();
         if (isMounted) {
           setUser(currentUser);
@@ -40,6 +64,15 @@ export function AuthProvider({ children }) {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setPasswordRecovery(true);
+      }
+
+      if (event === 'SIGNED_IN' && getAuthFlow() === 'email_verification') {
+        setEmailVerificationSuccess(true);
+        setUser(null);
+        setLoading(false);
+        cleanAuthFlowUrl();
+        supabase.auth.signOut().catch(() => {});
+        return;
       }
 
       setUser(session?.user || null);
@@ -83,6 +116,10 @@ export function AuthProvider({ children }) {
     setPasswordRecovery(false);
   }
 
+  function finishEmailVerification() {
+    setEmailVerificationSuccess(false);
+  }
+
   async function loginWithGoogle() {
     return signInWithGoogle();
   }
@@ -97,6 +134,8 @@ export function AuthProvider({ children }) {
     user,
     loading,
     deleteAccount,
+    emailVerificationSuccess,
+    finishEmailVerification,
     finishPasswordRecovery,
     login,
     loginWithGoogle,
@@ -105,7 +144,7 @@ export function AuthProvider({ children }) {
     logout,
     resetPassword,
     saveNewPassword
-  }), [loading, passwordRecovery, user]);
+  }), [emailVerificationSuccess, loading, passwordRecovery, user]);
 
   return (
     <AuthContext.Provider value={value}>
