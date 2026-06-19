@@ -684,16 +684,14 @@
   margin-bottom: 7px;
   color: var(--color-muted);
   font-size: 0.85rem;
-}
-/* =========================================================
-   STEP 3 — ACCOUNTS PAGE COMPACT GROUPED LIST
-   Used by AccountsPage.jsx + compact AccountCard.jsx.
-   Existing account-card rules are preserved for other screens.
+}/* =========================================================
+   ACCOUNTS PAGE - CATEGORY-STYLE EDITABLE LIST
+   Page-specific: Dashboard and Categories stay unchanged.
    ========================================================= */
 
 .account-list {
   display: grid;
-  gap: 22px;
+  gap: 18px;
 }
 
 .account-type-group {
@@ -708,135 +706,166 @@
   font-weight: 900;
 }
 
-.account-type-list {
+.account-flat-list {
+  display: grid;
+  gap: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 18px;
-  background: var(--color-surface);
+  background: #ffffff;
   box-shadow: var(--shadow-card);
 }
 
-.account-list-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: center;
-  min-height: 76px;
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef4fb;
-  background: var(--color-surface);
+.account-flat-row {
+  position: relative;
+  min-height: 56px;
+  overflow: hidden;
 }
 
-.account-list-row:last-child {
+.account-row-slide {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: inherit;
+  padding: 7px 12px;
+  border-bottom: 1px solid #eef4fb;
+  background: #ffffff;
+  transition: transform 0.22s ease, background-color 0.18s ease;
+}
+
+.account-flat-row:last-child .account-row-slide {
   border-bottom: 0;
 }
 
-.account-list-main {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  min-width: 0;
+.account-flat-row.reveal-delete .account-row-slide {
+  transform: translateX(-52px);
 }
 
-.account-list-icon {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 13px;
-  color: var(--color-primary);
+.account-flat-row.is-dragging {
+  z-index: 3;
+  opacity: 0.48;
+}
+
+.account-flat-row.is-dragging .account-row-slide {
+  box-shadow: 0 8px 22px rgba(15, 39, 71, 0.12);
+}
+
+.account-flat-row.is-drag-over .account-row-slide {
   background: var(--color-primary-soft);
-  font-size: 0.7rem;
-  font-weight: 900;
 }
 
-.account-list-details {
+.account-delete-reveal {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: grid;
-  gap: 4px;
-  min-width: 0;
+  width: 52px;
+  place-items: center;
+  border: 0;
+  color: var(--color-danger);
+  background: #ffffff;
+  cursor: pointer;
 }
 
-.account-list-details h3 {
-  overflow: hidden;
-  margin: 0;
-  color: var(--color-text);
-  font-size: 0.95rem;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-list-details p,
-.account-list-details small {
-  overflow: hidden;
-  margin: 0;
-  color: var(--color-faint);
-  font-size: 0.76rem;
-  font-weight: 700;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-list-right {
+.account-minus-button,
+.account-icon-button {
   display: grid;
-  justify-items: end;
-  gap: 7px;
-  min-width: 0;
-  text-align: right;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
 }
 
-.account-list-right > strong {
-  color: var(--color-text);
-  font-size: 0.98rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.account-list-right > strong.amount-negative {
+.account-minus-button {
   color: var(--color-danger);
 }
 
-.account-list-actions {
+.account-icon-button {
+  color: var(--color-muted);
+}
+
+.account-row-main {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.account-row-main strong {
+  overflow: hidden;
+  margin: 0;
+  color: #0f2747;
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-row-main small {
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-style: italic;
+  font-weight: 800;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-row-tools {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 10px;
 }
 
-@media (max-width: 560px) {
-  .account-list {
-    gap: 18px;
+.account-row-balance {
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.account-row-balance.amount-negative {
+  color: var(--color-danger);
+}
+
+.account-grip-button {
+  cursor: grab;
+}
+
+.account-grip-button:active {
+  cursor: grabbing;
+}
+
+.account-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+@media (max-width: 620px) {
+  .account-row-slide {
+    gap: 7px;
+    padding: 7px 10px;
   }
 
-  .account-list-row {
-    gap: 10px;
-    min-height: 72px;
-    padding: 13px 12px;
+  .account-row-tools {
+    gap: 7px;
   }
 
-  .account-list-main {
-    gap: 10px;
+  .account-row-balance {
+    max-width: 104px;
+    overflow: hidden;
+    font-size: 0.76rem;
+    text-overflow: ellipsis;
   }
 
-  .account-list-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 11px;
-    font-size: 0.65rem;
-  }
-
-  .account-list-details p,
-  .account-list-details small {
-    font-size: 0.7rem;
-  }
-
-  .account-list-right > strong {
-    font-size: 0.9rem;
-  }
-
-  .account-list-actions {
-    gap: 8px;
+  .account-row-main small {
+    max-width: 175px;
   }
 }

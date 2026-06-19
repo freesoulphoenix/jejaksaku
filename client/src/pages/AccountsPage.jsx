@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AccountCard from '../components/AccountCard.jsx';
-import { createAccount, deleteAccount, getAccounts, updateAccount } from '../services/accountService.js';
+import {
+  createAccount,
+  deleteAccount,
+  getAccounts,
+  updateAccount,
+  updateAccountOrder
+} from '../services/accountService.js';
 import { getTransactions } from '../services/transactionService.js';
 import { calculateAccountBalances } from '../utils/balance.js';
 
@@ -16,15 +22,42 @@ const emptyForm = {
   status: 'active'
 };
 
+function sortAccounts(accounts) {
+  return [...accounts].sort((a, b) => {
+    const aOrder = Number.isFinite(Number(a.sort_order))
+      ? Number(a.sort_order)
+      : Number.MAX_SAFE_INTEGER;
+    const bOrder = Number.isFinite(Number(b.sort_order))
+      ? Number(b.sort_order)
+      : Number.MAX_SAFE_INTEGER;
+
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
   const [pendingDeleteId, setPendingDeleteId] = useState('');
+  const [draggingAccountId, setDraggingAccountId] = useState('');
+  const [dragOverAccountId, setDragOverAccountId] = useState('');
+  const [isSortingAccount, setIsSortingAccount] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const accountsByType = useMemo(() => {
+    return accountTypes.reduce((groups, type) => {
+      groups[type] = sortAccounts(accounts.filter((account) => account.type === type));
+      return groups;
+    }, {});
+  }, [accounts]);
 
   const loadAccounts = useCallback(async function loadAccounts() {
     setError('');
@@ -35,6 +68,7 @@ export default function AccountsPage() {
         getAccounts(),
         getTransactions()
       ]);
+
       setAccounts(calculateAccountBalances(accountData, transactionData));
     } catch (err) {
       setError(err.message || 'Unable to load accounts.');
@@ -52,7 +86,7 @@ export default function AccountsPage() {
       return undefined;
     }
 
-    function collapseRevealedRow(event) {
+    function handlePointerDown(event) {
       const target = event.target;
 
       if (!target || typeof target.closest !== 'function') {
@@ -60,9 +94,8 @@ export default function AccountsPage() {
       }
 
       if (
-        target.closest('.apple-edit-minus')
-        || target.closest('.apple-edit-delete-reveal')
-        || target.closest('.apple-edit-control')
+        target.closest('.account-minus-button')
+        || target.closest('.account-delete-reveal')
       ) {
         return;
       }
@@ -70,8 +103,11 @@ export default function AccountsPage() {
       setPendingDeleteId('');
     }
 
-    document.addEventListener('pointerdown', collapseRevealedRow);
-    return () => document.removeEventListener('pointerdown', collapseRevealedRow);
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
   }, [pendingDeleteId]);
 
   function openCreateForm() {
@@ -91,6 +127,7 @@ export default function AccountsPage() {
       reconciliation_notes: '',
       status: account.status || 'active'
     });
+
     setEditingAccountId(account.id);
     setPendingDeleteId('');
     setIsFormOpen(true);
@@ -131,6 +168,8 @@ export default function AccountsPage() {
   }
 
   async function handleDelete(account) {
+    setPendingDeleteId('');
+
     const confirmed = window.confirm(`Delete ${account.name}?`);
 
     if (!confirmed) {
@@ -138,7 +177,6 @@ export default function AccountsPage() {
     }
 
     setError('');
-    setPendingDeleteId('');
 
     try {
       await deleteAccount(account.id);
@@ -148,6 +186,86 @@ export default function AccountsPage() {
     }
   }
 
+  function handleAccountDragStart(event, account) {
+    if (isSortingAccount) {
+      event.preventDefault();
+      return;
+    }
+
+    setPendingDeleteId('');
+    setDraggingAccountId(account.id);
+    setDragOverAccountId('');
+
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', account.id);
+  }
+
+  function handleAccountDragOver(event, account) {
+    event.preventDefault();
+
+    const sourceAccount = accounts.find((item) => item.id === draggingAccountId);
+
+    if (
+      !sourceAccount
+      || sourceAccount.id === account.id
+      || sourceAccount.type !== account.type
+    ) {
+      return;
+    }
+
+    setDragOverAccountId(account.id);
+  }
+
+  async function handleAccountDrop(event, targetAccount, rows) {
+    event.preventDefault();
+
+    const sourceId = event.dataTransfer.getData('text/plain') || draggingAccountId;
+    const sourceAccount = accounts.find((item) => item.id === sourceId);
+
+    if (
+      !sourceAccount
+      || sourceAccount.type !== targetAccount.type
+      || sourceAccount.id === targetAccount.id
+    ) {
+      setDraggingAccountId('');
+      setDragOverAccountId('');
+      return;
+    }
+
+    const sourceIndex = rows.findIndex((item) => item.id === sourceId);
+    const targetIndex = rows.findIndex((item) => item.id === targetAccount.id);
+
+    if (sourceIndex < 0 || targetIndex < 0) {
+      setDraggingAccountId('');
+      setDragOverAccountId('');
+      return;
+    }
+
+    const reorderedRows = [...rows];
+    const [movedAccount] = reorderedRows.splice(sourceIndex, 1);
+    reorderedRows.splice(targetIndex, 0, movedAccount);
+
+    setIsSortingAccount(true);
+    setError('');
+
+    try {
+      await updateAccountOrder(reorderedRows);
+      await loadAccounts();
+    } catch (err) {
+      setError(err.message || 'Unable to reorder accounts.');
+      await loadAccounts();
+    } finally {
+      setIsSortingAccount(false);
+      setDraggingAccountId('');
+      setDragOverAccountId('');
+    }
+  }
+
+  function handleAccountDragEnd() {
+    setDraggingAccountId('');
+    setDragOverAccountId('');
+  }
+
   return (
     <div className="page-stack">
       <section className="page-heading">
@@ -155,6 +273,7 @@ export default function AccountsPage() {
           <p className="section-kicker">Wallets and liabilities</p>
           <h1>Accounts</h1>
         </div>
+
         <button className="primary-button" onClick={openCreateForm}>Add Account</button>
       </section>
 
@@ -164,6 +283,7 @@ export default function AccountsPage() {
         <section className="panel">
           <div className="panel-header">
             <h2>{editingAccountId ? 'Edit Account' : 'Add Account'}</h2>
+
             <button className="text-button" onClick={closeForm}>Cancel</button>
           </div>
 
@@ -245,22 +365,55 @@ export default function AccountsPage() {
 
       {loading && <p className="muted-copy">Loading accounts...</p>}
 
-      <section className="account-grid">
-        {accounts.map((account) => (
-          <AccountCard
-            account={account}
-            isDeleteRevealed={pendingDeleteId === account.id}
-            key={account.id}
-            onDelete={handleDelete}
-            onEdit={openEditForm}
-            onToggleDelete={(accountId) => {
-              setPendingDeleteId((currentId) => (
-                currentId === accountId ? '' : accountId
-              ));
-            }}
-          />
-        ))}
-      </section>
+      {!loading && accounts.length === 0 && (
+        <section className="empty-state">
+          <h2>No accounts yet</h2>
+          <p>Add your first cash, bank, e-wallet, or investment account.</p>
+        </section>
+      )}
+
+      {!loading && accounts.length > 0 && (
+        <section className="account-list">
+          {accountTypes.map((type) => {
+            const rows = accountsByType[type];
+
+            if (rows.length === 0) {
+              return null;
+            }
+
+            return (
+              <section className="account-type-group" key={type}>
+                <h2 className="account-type-heading">{type}</h2>
+
+                <div className="account-flat-list is-editing">
+                  {rows.map((account) => (
+                    <AccountCard
+                      account={account}
+                      dragOver={dragOverAccountId === account.id}
+                      dragging={draggingAccountId === account.id}
+                      isDeleteRevealed={pendingDeleteId === account.id}
+                      isSorting={isSortingAccount}
+                      key={account.id}
+                      onDelete={handleDelete}
+                      onDragEnd={handleAccountDragEnd}
+                      onDragOver={handleAccountDragOver}
+                      onDragStart={handleAccountDragStart}
+                      onDrop={handleAccountDrop}
+                      onEdit={openEditForm}
+                      onToggleDelete={(accountId) => {
+                        setPendingDeleteId((currentId) => (
+                          currentId === accountId ? '' : accountId
+                        ));
+                      }}
+                      rows={rows}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </section>
+      )}
     </div>
   );
 }

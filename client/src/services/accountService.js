@@ -11,18 +11,39 @@ function requireSupabase() {
 
 async function getScopedQuery() {
   const userProfileId = await getCurrentUserProfileId();
+
   return {
     client: requireSupabase(),
     userProfileId
   };
 }
 
+async function getNextAccountSortOrder({ client, type, userProfileId }) {
+  const { data, error } = await client
+    .from('accounts')
+    .select('sort_order')
+    .eq('user_profile_id', userProfileId)
+    .eq('type', type)
+    .order('sort_order', { ascending: false, nullsFirst: false })
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  const currentMax = Number(data?.[0]?.sort_order);
+  return Number.isFinite(currentMax) ? currentMax + 1 : 1;
+}
+
 export async function getAccounts() {
   const { client, userProfileId } = await getScopedQuery();
+
   const { data, error } = await client
     .from('accounts')
     .select('*')
     .eq('user_profile_id', userProfileId)
+    .order('type', { ascending: true })
+    .order('sort_order', { ascending: true, nullsFirst: false })
     .order('name', { ascending: true });
 
   if (error) {
@@ -35,6 +56,12 @@ export async function getAccounts() {
 export async function createAccount(account) {
   const { client, userProfileId } = await getScopedQuery();
   const balance = Number(account.balance || 0);
+  const sortOrder = await getNextAccountSortOrder({
+    client,
+    type: account.type,
+    userProfileId
+  });
+
   const { data, error } = await client
     .from('accounts')
     .insert({
@@ -43,6 +70,7 @@ export async function createAccount(account) {
       type: account.type,
       balance,
       opening_balance: balance,
+      sort_order: sortOrder,
       status: account.status || 'active'
     })
     .select('*')
@@ -57,6 +85,7 @@ export async function createAccount(account) {
 
 export async function updateAccount(id, account) {
   const { client, userProfileId } = await getScopedQuery();
+
   const { data: existing, error: existingError } = await client
     .from('accounts')
     .select('*')
@@ -70,6 +99,7 @@ export async function updateAccount(id, account) {
 
   const nextBalance = Number(account.balance || 0);
   const balanceChanged = Number(existing.balance || 0) !== nextBalance;
+
   const { data, error } = await client
     .from('accounts')
     .update({
@@ -91,6 +121,7 @@ export async function updateAccount(id, account) {
 
   if (balanceChanged) {
     const calculatedBalance = Number(account.calculated_balance ?? existing.balance ?? 0);
+
     const { error: reconciliationError } = await client
       .from('account_reconciliations')
       .insert({
@@ -110,8 +141,28 @@ export async function updateAccount(id, account) {
   return data;
 }
 
+export async function updateAccountOrder(accounts = []) {
+  const { client, userProfileId } = await getScopedQuery();
+
+  const updates = accounts.map((account, index) =>
+    client
+      .from('accounts')
+      .update({ sort_order: index + 1 })
+      .eq('id', account.id)
+      .eq('user_profile_id', userProfileId)
+  );
+
+  const results = await Promise.all(updates);
+  const failed = results.find((result) => result.error);
+
+  if (failed?.error) {
+    throw failed.error;
+  }
+}
+
 export async function deleteAccount(id) {
   const { client, userProfileId } = await getScopedQuery();
+
   const { error } = await client
     .from('accounts')
     .delete()
