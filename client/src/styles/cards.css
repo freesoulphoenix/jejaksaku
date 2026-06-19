@@ -1061,25 +1061,36 @@
 
 .account-page-heading,
 .activity-page-heading {
-  align-items: center;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px;
+  width: 100%;
+}
+
+.account-page-heading > div,
+.activity-page-heading > div {
+  min-width: 0;
 }
 
 .account-page-add-button,
 .activity-page-add-button {
   flex: 0 0 auto;
+  margin-left: auto;
+  align-self: flex-start;
 }
 
 @media (max-width: 767px) {
   .account-page-heading,
   .activity-page-heading {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
   }
 
-  .page-heading > .account-page-add-button,
-  .page-heading > .activity-page-add-button {
+  .account-page-add-button,
+  .activity-page-add-button {
     min-height: 40px;
   }
 
