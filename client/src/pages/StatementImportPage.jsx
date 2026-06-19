@@ -22,7 +22,8 @@ import { formatCurrency } from '../utils/format.js';
 import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 const allowedExtensions = ['pdf', 'csv', 'xlsx'];
-const activeStatuses = new Set(['pending', 'needs_review', 'duplicate']);
+const activeStatuses = new Set(['pending', 'needs_review']);
+const processedStatuses = new Set(['imported', 'ignored', 'duplicate']);
 
 function getFileType(file) {
   return file.name.split('.').pop()?.toLowerCase() || '';
@@ -106,8 +107,8 @@ export default function StatementImportPage() {
     activeRows.filter((row) => selectedIds.has(row.id))
   ), [activeRows, selectedIds]);
 
-  const inactiveRows = useMemo(() => (
-    previewRows.filter((row) => ['imported', 'ignored'].includes(row.import_status))
+  const processedRows = useMemo(() => (
+    previewRows.filter((row) => processedStatuses.has(row.import_status))
   ), [previewRows]);
 
   const summary = useMemo(() => {
@@ -118,16 +119,16 @@ export default function StatementImportPage() {
       .filter((row) => row.transaction_type === 'expense')
       .reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const rowsNeedingReview = activeRows.filter((row) => row.import_status === 'needs_review').length;
-    const duplicates = activeRows.filter((row) => row.import_status === 'duplicate').length;
+    const linkedRows = processedRows.filter((row) => row.import_status === 'duplicate').length;
 
     return {
-      duplicates,
+      linkedRows,
       netAmount: totalIncome - totalExpense,
       rowsNeedingReview,
       totalExpense,
       totalIncome
     };
-  }, [activeRows, selectedRows]);
+  }, [activeRows, processedRows, selectedRows]);
 
   async function loadImports() {
     setError('');
@@ -694,7 +695,7 @@ export default function StatementImportPage() {
             <span><strong>{formatCurrency(summary.totalExpense)}</strong> expense</span>
             <span><strong>{formatCurrency(summary.netAmount)}</strong> net</span>
             <span><strong>{summary.rowsNeedingReview}</strong> need review</span>
-            <span><strong>{summary.duplicates}</strong> duplicate</span>
+            <span><strong>{summary.linkedRows}</strong> linked</span>
           </section>
 
           <div className="button-row">
@@ -892,15 +893,15 @@ export default function StatementImportPage() {
 
           {activeRows.length === 0 && <p className="muted-copy">No active rows left in this review queue.</p>}
 
-          {inactiveRows.length > 0 && (
+          {processedRows.length > 0 && (
             <details className="statement-history-detail">
-              <summary>{inactiveRows.length} imported or ignored row{inactiveRows.length > 1 ? 's' : ''}</summary>
+              <summary>{processedRows.length} processed row{processedRows.length > 1 ? 's' : ''}</summary>
               <div className="statement-import-list">
-                {inactiveRows.map((row) => (
+                {processedRows.map((row) => (
                   <div className="statement-import-row" key={row.id}>
                     <div>
                       <strong>{row.clean_description || row.description}</strong>
-                      <span>{row.transaction_date} - {row.import_status}</span>
+                      <span>{row.transaction_date} - {row.import_status === 'duplicate' ? 'linked' : row.import_status}</span>
                     </div>
                     <strong>{formatCurrency(Math.abs(Number(row.amount || 0)))}</strong>
                   </div>

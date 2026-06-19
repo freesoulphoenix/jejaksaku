@@ -45,9 +45,9 @@ create table if not exists public.project_tags (
 create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
-  account_id uuid references public.accounts(id) on delete set null,
-  from_account_id uuid references public.accounts(id) on delete set null,
-  to_account_id uuid references public.accounts(id) on delete set null,
+  account_id uuid references public.accounts(id) on delete restrict,
+  from_account_id uuid references public.accounts(id) on delete restrict,
+  to_account_id uuid references public.accounts(id) on delete restrict,
   category_id uuid references public.categories(id) on delete set null,
   project_tag_id uuid references public.project_tags(id) on delete set null,
   transaction_type text not null,

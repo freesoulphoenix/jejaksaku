@@ -163,6 +163,23 @@ export async function updateAccountOrder(accounts = []) {
 export async function deleteAccount(id) {
   const { client, userProfileId } = await getScopedQuery();
 
+  const { data: linkedTransactions, error: linkedTransactionsError } = await client
+    .from('transactions')
+    .select('id')
+    .eq('user_profile_id', userProfileId)
+    .or(`account_id.eq.${id},from_account_id.eq.${id},to_account_id.eq.${id}`)
+    .limit(1);
+
+  if (linkedTransactionsError) {
+    throw linkedTransactionsError;
+  }
+
+  if (linkedTransactions?.length) {
+    throw new Error(
+      'This account cannot be deleted because it is used by one or more transactions. Reassign or delete those transactions first.'
+    );
+  }
+
   const { error } = await client
     .from('accounts')
     .delete()
