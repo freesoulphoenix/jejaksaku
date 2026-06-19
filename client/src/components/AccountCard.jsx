@@ -10,9 +10,18 @@ export default function AccountCard({
   onToggleDelete,
   revealDeleteMode = false
 }) {
+  const reconciledBalance = account.reconciled_balance ?? account.balance;
+  const calculatedBalance = account.calculated_balance ?? account.balance;
   const difference = Number(account.balance_difference || 0);
   const isRevealed = isDeleteRevealed ?? deleteRevealActive;
   const shouldUseReveal = revealDeleteMode || Boolean(onToggleDelete) || isDeleteRevealed !== undefined;
+
+  const differenceClassName =
+    difference < 0
+      ? 'amount-negative'
+      : difference > 0
+        ? 'amount-positive'
+        : '';
 
   function handleToggleDelete() {
     if (onToggleDelete) {
@@ -23,76 +32,94 @@ export default function AccountCard({
     onRevealDelete?.(account);
   }
 
-  const content = (
-    <>
-      <div className="account-icon">{account.name.slice(0, 2).toUpperCase()}</div>
-      <div className="account-identity">
-        <span>{account.type}</span>
-        <h2>{account.name}</h2>
-      </div>
-      <strong className={account.reconciled_balance < 0 ? 'amount-negative' : ''}>
-        {formatCurrency(account.reconciled_balance ?? account.balance)}
-      </strong>
-      <div className="account-balance-detail">
-        <span>Calculated: {formatCurrency(account.calculated_balance ?? account.balance)}</span>
-        <span className={difference < 0 ? 'amount-negative' : difference > 0 ? 'amount-positive' : ''}>
-          Difference: {formatCurrency(difference)}
-        </span>
-        {account.last_reconciled_at && (
-          <span>Last reconciled: {new Date(account.last_reconciled_at).toLocaleDateString('id-ID')}</span>
-        )}
-      </div>
-      {(onDelete || onEdit) && !shouldUseReveal && (
-        <div className="account-actions">
-          {onEdit && <button className="text-button" onClick={() => onEdit(account)} type="button">Edit</button>}
-          {onDelete && <button className="text-button danger" onClick={() => onDelete(account)} type="button">Delete</button>}
+  const rowContent = (
+    <article className="account-list-row">
+      <div className="account-list-main">
+        <div className="account-list-icon">
+          {account.name.slice(0, 2).toUpperCase()}
         </div>
-      )}
-      {onEdit && shouldUseReveal && (
-        <div className="account-actions">
-          <button className="text-button apple-edit-control dashboard-row-control" onClick={() => onEdit(account)} type="button">
-            Edit
-          </button>
-        </div>
-      )}
-    </>
-  );
 
-  if (shouldUseReveal) {
-    return (
-      <div className={`apple-edit-row account-edit-row ${isRevealed ? 'reveal-delete' : ''}`}>
-        {onDelete && (
-          <button
-            aria-label={`Delete ${account.name}`}
-            className="apple-edit-delete-reveal dashboard-row-delete"
-            onClick={() => onDelete(account)}
-            type="button"
-          >
-            Delete
-          </button>
-        )}
-        <div className="apple-edit-row-slide">
-          {onDelete && (
+        <div className="account-list-details">
+          <h3>{account.name}</h3>
+
+          <p>
+            Calculated: {formatCurrency(calculatedBalance)}
+            {' - '}
+            <span className={differenceClassName}>
+              Difference: {formatCurrency(difference)}
+            </span>
+          </p>
+
+          {account.last_reconciled_at && (
+            <small>
+              Last reconciled:{' '}
+              {new Date(account.last_reconciled_at).toLocaleDateString('id-ID')}
+            </small>
+          )}
+        </div>
+      </div>
+
+      <div className="account-list-right">
+        <strong className={Number(reconciledBalance) < 0 ? 'amount-negative' : ''}>
+          {formatCurrency(reconciledBalance)}
+        </strong>
+
+        <div className="account-list-actions">
+          {onEdit && (
             <button
-              aria-label={isRevealed ? `Hide delete for ${account.name}` : `Show delete for ${account.name}`}
-              className="apple-edit-minus dashboard-row-minus"
-              onClick={handleToggleDelete}
+              className="text-button apple-edit-control dashboard-row-control"
+              onClick={() => onEdit(account)}
               type="button"
             >
-              <span aria-hidden="true">-</span>
+              Edit
             </button>
           )}
-          <article className="account-card apple-edit-card-content">
-            {content}
-          </article>
+
+          {onDelete && !shouldUseReveal && (
+            <button
+              className="text-button danger"
+              onClick={() => onDelete(account)}
+              type="button"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
-    );
+    </article>
+  );
+
+  if (!shouldUseReveal) {
+    return rowContent;
   }
 
   return (
-    <article className="account-card">
-      {content}
-    </article>
+    <div className={`apple-edit-row account-edit-row ${isRevealed ? 'reveal-delete' : ''}`}>
+      {onDelete && (
+        <button
+          aria-label={`Delete ${account.name}`}
+          className="apple-edit-delete-reveal dashboard-row-delete"
+          onClick={() => onDelete(account)}
+          type="button"
+        >
+          Delete
+        </button>
+      )}
+      <div className="apple-edit-row-slide">
+        {onDelete && (
+          <button
+            aria-label={isRevealed ? `Hide delete for ${account.name}` : `Show delete for ${account.name}`}
+            className="apple-edit-minus dashboard-row-minus"
+            onClick={handleToggleDelete}
+            type="button"
+          >
+            <span aria-hidden="true">-</span>
+          </button>
+        )}
+        <div className="apple-edit-card-content">
+          {rowContent}
+        </div>
+      </div>
+    </div>
   );
 }
