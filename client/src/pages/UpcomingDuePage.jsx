@@ -8,6 +8,32 @@ import { formatCurrency } from '../utils/format.js';
 
 const today = new Date().toISOString().slice(0, 10);
 
+function FlatIcon({ name }) {
+  const commonProps = {
+    'aria-hidden': 'true',
+    fill: 'none',
+    height: '18',
+    stroke: 'currentColor',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeWidth: '2',
+    viewBox: '0 0 24 24',
+    width: '18'
+  };
+
+  if (name === 'plus') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 8v8" />
+        <path d="M8 12h8" />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
 const emptyForm = {
   title: '',
   provider: '',
@@ -228,9 +254,8 @@ export default function UpcomingDuePage() {
       }
 
       if (
-        target.closest('.apple-edit-minus')
-        || target.closest('.apple-edit-delete-reveal')
-        || target.closest('.apple-edit-control')
+        target.closest('.due-minus-button')
+        || target.closest('.due-delete-reveal')
       ) {
         return;
       }
@@ -381,16 +406,22 @@ export default function UpcomingDuePage() {
   }
 
   return (
-    <div className="page-stack">
-      <section className="page-heading">
-        <div>
+    <div className="page-stack due-page">
+      <section className="page-heading due-page-heading">
+        <div className="due-heading-copy">
           <p className="section-kicker">Bills and reminders</p>
           <h1>Upcoming Due</h1>
+          <span className="due-summary-pill">{formatCurrency(total)}</span>
         </div>
-        <div className="button-row">
-          <span className="summary-pill">{formatCurrency(total)}</span>
-          <button className="primary-button" onClick={openCreateForm}>Add Due Item</button>
-        </div>
+
+        <button
+          aria-label="Add due item"
+          className="category-page-add-button due-page-add-button"
+          onClick={openCreateForm}
+          type="button"
+        >
+          <FlatIcon name="plus" />
+        </button>
       </section>
 
       {error && <p className="form-message error">{error}</p>}
@@ -635,23 +666,31 @@ export default function UpcomingDuePage() {
         </div>
       )}
 
-      {loading && <p className="muted-copy">Loading upcoming due...</p>}
-
-      <section className="due-grid">
-        {dueItems.map((item) => (
-          <DueItem
-            deleteRevealActive={activeDeleteId === item.id}
-            expanded
-            item={item}
-            key={item.id}
-            onDelete={handleDelete}
-            onEdit={openEditForm}
-            onPayNow={handlePayNow}
-            onRevealDelete={() => setActiveDeleteId((currentId) => (currentId === item.id ? '' : item.id))}
-            revealDeleteMode
-          />
-        ))}
-      </section>
+      <article className="panel due-list-panel">
+        {loading ? (
+          <p className="muted-copy activity-empty-copy">Loading upcoming due...</p>
+        ) : dueItems.length === 0 ? (
+          <p className="muted-copy activity-empty-copy">No upcoming due items yet.</p>
+        ) : (
+          <div className="due-flat-list">
+            {dueItems.map((item) => (
+              <DueItem
+                isDeleteRevealed={activeDeleteId === item.id}
+                item={item}
+                key={item.id}
+                onDelete={handleDelete}
+                onEdit={openEditForm}
+                onPayNow={handlePayNow}
+                onToggleDelete={(itemId) => {
+                  setActiveDeleteId((currentId) => (
+                    currentId === itemId ? '' : itemId
+                  ));
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </article>
     </div>
   );
 }
