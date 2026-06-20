@@ -31,7 +31,7 @@ export default function ForgotPasswordPage({ onShowLogin }) {
         <div className="auth-brand">
           <BrandMark />
           <div>
-            <strong>Dompet Daily</strong>
+            <strong>Jejak Dana</strong>
             <small>Access your daily expense workspace.</small>
           </div>
         </div>
@@ -39,7 +39,7 @@ export default function ForgotPasswordPage({ onShowLogin }) {
         <div className="auth-heading">
           <p className="section-kicker">Reset access</p>
           <h1>Forgot password</h1>
-          <p>Send a reset link to your Dompet Daily account email.</p>
+          <p>Send a reset link to your Jejak Dana account email.</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>

@@ -122,7 +122,7 @@ export default function ReportsPage() {
     const worksheet = XLSX.utils.json_to_sheet(worksheetRows);
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions');
-    XLSX.writeFile(workbook, 'dompetdaily-report.xlsx');
+    XLSX.writeFile(workbook, 'jejakdana-report.xlsx');
   }
 
   function exportPdf() {
@@ -140,7 +140,7 @@ export default function ReportsPage() {
     reportWindow.document.write(`
       <html>
         <head>
-          <title>Dompet Daily Report</title>
+          <title>Jejak Dana Report</title>
           <style>
             body { font-family: Arial, sans-serif; color: #0f2747; padding: 32px; }
             h1 { margin: 0 0 16px; }
@@ -151,7 +151,7 @@ export default function ReportsPage() {
           </style>
         </head>
         <body>
-          <h1>Dompet Daily Report</h1>
+          <h1>Jejak Dana Report</h1>
           <p>Spending: ${formatCurrency(reportData.monthlySpending)} | Income: ${formatCurrency(reportData.monthlyIncome)} | Cash Flow: ${formatCurrency(reportData.cashFlow)}</p>
           <h2>Transactions</h2>
           <table>

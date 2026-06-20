@@ -20,5 +20,5 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 app.listen(port, () => {
-  console.log(`Dompet Daily API running on http://localhost:${port}`);
+  console.log(`Jejak Dana API running on http://localhost:${port}`);
 });

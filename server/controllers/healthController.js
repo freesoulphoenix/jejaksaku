@@ -1,6 +1,6 @@
 export function getHealth(req, res) {
   res.json({
-    name: 'Dompet Daily API',
+    name: 'Jejak Dana API',
     status: 'ok',
     timestamp: new Date().toISOString()
   });

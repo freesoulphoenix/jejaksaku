@@ -32,7 +32,7 @@ export default function ResetPasswordPage() {
 
     try {
       await saveNewPassword(password);
-      setMessage('Password updated. You can continue to Dompet Daily.');
+      setMessage('Password updated. You can continue to Jejak Dana.');
     } catch (err) {
       setError(err.message || 'Unable to update your password.');
     } finally {
@@ -46,7 +46,7 @@ export default function ResetPasswordPage() {
         <div className="auth-brand">
           <BrandMark />
           <div>
-            <strong>Dompet Daily</strong>
+            <strong>Jejak Dana</strong>
             <small>Access your daily expense workspace.</small>
           </div>
         </div>
@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
         <div className="auth-heading">
           <p className="section-kicker">Reset password</p>
           <h1>Create a new password</h1>
-          <p>Choose a stronger password for your Dompet Daily account.</p>
+          <p>Choose a stronger password for your Jejak Dana account.</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>

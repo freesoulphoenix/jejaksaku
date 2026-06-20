@@ -202,7 +202,7 @@ export default function ReceiptDetailPage({
               <span>
                 {fileExpired
                   ? 'The uploaded file was removed after the 90-day retention window. The receipt entry and report data remain available.'
-                  : 'This receipt image cannot be displayed by the browser. If this was a HEIC upload, delete it and upload it again so Dompet Daily can convert it to JPEG first.'}
+                  : 'This receipt image cannot be displayed by the browser. If this was a HEIC upload, delete it and upload it again so Jejak Dana can convert it to JPEG first.'}
               </span>
             </div>
           )}

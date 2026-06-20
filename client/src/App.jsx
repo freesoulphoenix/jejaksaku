@@ -65,7 +65,7 @@ function SafetyNoticePage({ onAcknowledge, user }) {
           <p className="section-kicker">Before you continue</p>
           <h1>Protect your private information</h1>
           <p>
-            Dompet Daily is for personal finance records, spending reports, receipt history, and analysis.
+            Jejak Dana is for personal finance records, spending reports, receipt history, and analysis.
             It is not a banking app, payment app, or transactional service.
           </p>
         </div>
@@ -110,7 +110,7 @@ function OfflineNotice() {
 
   return (
     <div className="offline-notice" role="status">
-      You are offline. Dompet Daily will keep the app open, but fresh account data and uploads need a connection.
+      You are offline. Jejak Dana will keep the app open, but fresh account data and uploads need a connection.
     </div>
   );
 }
@@ -123,7 +123,7 @@ function EmailVerificationSuccessPage({ onLogin }) {
         <div className="auth-heading">
           <p className="section-kicker">Email verified</p>
           <h1>Your email is confirmed</h1>
-          <p>You can now log in to Dompet Daily with your email and password.</p>
+          <p>You can now log in to Jejak Dana with your email and password.</p>
         </div>
         <button className="primary-button auth-submit" onClick={onLogin} type="button">
           Login
@@ -189,7 +189,7 @@ function ProtectedApp() {
       <div className="auth-shell">
         <div className="auth-card compact">
           <BrandMark />
-          <p>Checking your Dompet Daily session...</p>
+          <p>Checking your Jejak Dana session...</p>
         </div>
       </div>
     );

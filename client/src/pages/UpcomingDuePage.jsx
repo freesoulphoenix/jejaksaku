@@ -187,7 +187,7 @@ function sendBrowserNotifications(items) {
         return;
       }
 
-      new Notification('Dompet Daily due reminder', {
+      new Notification('Jejak Dana due reminder', {
         body: getReminderText(item)
       });
       sent[itemKey] = true;
@@ -525,7 +525,7 @@ export default function UpcomingDuePage() {
             <label className="setting-row span-2">
               <span>
                 <strong>Notification banner</strong>
-                <small>Show this due item inside Dompet Daily before the due date.</small>
+                <small>Show this due item inside Jejak Dana before the due date.</small>
               </span>
               <input
                 checked={form.reminder_enabled}

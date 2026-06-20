@@ -1,4 +1,4 @@
--- Dompet Daily development data reset.
+-- Jejak Dana development data reset.
 -- Run manually in the Supabase SQL editor only when you want a clean dev database.
 -- This keeps schema, policies, triggers, functions, and storage buckets.
 -- It deletes app records and Supabase Auth users.

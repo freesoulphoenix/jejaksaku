@@ -1,4 +1,4 @@
-# Dompet Daily Supabase Setup
+# Jejak Dana Supabase Setup
 
 ## Apply the Database Schema
 

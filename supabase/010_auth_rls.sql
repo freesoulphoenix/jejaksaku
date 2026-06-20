@@ -8,7 +8,7 @@ begin
   insert into public.user_profiles (auth_user_id, display_name, email)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1), 'Dompet Daily User'),
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1), 'Jejak Dana User'),
     new.email
   )
   on conflict (email) do update

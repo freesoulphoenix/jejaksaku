@@ -44,7 +44,7 @@ export default function LoginPage({ onShowForgotPassword, onShowRegister }) {
         <div className="auth-brand">
           <BrandMark />
           <div>
-            <strong>Dompet Daily</strong>
+            <strong>Jejak Dana</strong>
             <small>Access your daily expense workspace.</small>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function LoginPage({ onShowForgotPassword, onShowRegister }) {
         </p>
 
         <p className="auth-switch">
-          New to Dompet Daily?
+          New to Jejak Dana?
           <button onClick={onShowRegister} type="button">Create account</button>
         </p>
       </section>

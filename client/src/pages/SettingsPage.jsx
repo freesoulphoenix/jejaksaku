@@ -668,7 +668,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <span className="settings-flat-icon"><FlatIcon name="info" /></span>
             <h2>About</h2>
           </div>
-          <p className="muted-copy">Dompet Daily is for expense records, receipt history, reports, and analysis.</p>
+          <p className="muted-copy">Jejak Dana is for expense records, receipt history, reports, and analysis.</p>
         </article>
 
         <article className="panel">
@@ -676,7 +676,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <span className="settings-flat-icon"><FlatIcon name="version" /></span>
             <h2>Version</h2>
           </div>
-          <p className="muted-copy">Dompet Daily {appVersion}</p>
+          <p className="muted-copy">Jejak Dana {appVersion}</p>
         </article>
 
         <article className="panel settings-panel-wide">
@@ -684,7 +684,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <div>
               <h3>Delete Account</h3>
               <p>
-                This permanently removes your Dompet Daily account, profile, accounts, categories,
+                This permanently removes your Jejak Dana account, profile, accounts, categories,
                 transactions, due reminders, receipts, statement imports, and uploaded files.
               </p>
             </div>
