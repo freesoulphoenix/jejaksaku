@@ -114,6 +114,15 @@ function getTransactionLinkLabel(transaction) {
   return '';
 }
 
+function TransactionLinkBadge({ className = '', label }) {
+  return (
+    <span className={`activity-link-badge ${className}`.trim()} title={label}>
+      <FlatIcon name="link" />
+      {label}
+    </span>
+  );
+}
+
 function formatDisplayDate(date) {
   if (!date) {
     return '';
@@ -212,10 +221,7 @@ function ActivityTransactionList({
                 <div className="activity-transaction-title-row">
                   <strong>{getTransactionTitle(transaction)}</strong>
                   {linkLabel && (
-                    <span className="activity-link-badge" title={linkLabel}>
-                      <FlatIcon name="link" />
-                      {linkLabel}
-                    </span>
+                    <TransactionLinkBadge className="activity-link-badge-desktop" label={linkLabel} />
                   )}
                 </div>
                 <small>{subtitle}</small>
@@ -249,6 +255,10 @@ function ActivityTransactionList({
                 >
                   <FlatIcon name="grip" />
                 </span>
+
+                {linkLabel && (
+                  <TransactionLinkBadge className="activity-link-badge-mobile" label={linkLabel} />
+                )}
               </div>
             </div>
 
