@@ -69,7 +69,7 @@ function extractTotal(lines) {
 
 function extractDate(lines) {
   const text = lines.join(' ');
-  const numericDate = text.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b/);
+  const numericDate = text.match(/\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/);
 
   if (numericDate) {
     const day = numericDate[1].padStart(2, '0');
@@ -82,6 +82,57 @@ function extractDate(lines) {
 
   if (isoDate) {
     return `${isoDate[1]}-${isoDate[2].padStart(2, '0')}-${isoDate[3].padStart(2, '0')}`;
+  }
+
+  const monthNumbers = {
+    jan: 1,
+    january: 1,
+    januari: 1,
+    feb: 2,
+    february: 2,
+    februari: 2,
+    mar: 3,
+    march: 3,
+    maret: 3,
+    apr: 4,
+    april: 4,
+    may: 5,
+    mei: 5,
+    jun: 6,
+    june: 6,
+    juni: 6,
+    jul: 7,
+    july: 7,
+    juli: 7,
+    aug: 8,
+    august: 8,
+    agustus: 8,
+    sep: 9,
+    sept: 9,
+    september: 9,
+    oct: 10,
+    october: 10,
+    oktober: 10,
+    nov: 11,
+    november: 11,
+    dec: 12,
+    december: 12,
+    desember: 12
+  };
+  const monthPattern = Object.keys(monthNumbers)
+    .sort((first, second) => second.length - first.length)
+    .join('|');
+  const dayFirstDate = text.match(new RegExp(`\\b(\\d{1,2})\\s+(${monthPattern})\\s*,?\\s*(\\d{2,4})\\b`, 'i'));
+  const monthFirstDate = text.match(new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})\\s*,?\\s*(\\d{2,4})\\b`, 'i'));
+
+  if (dayFirstDate || monthFirstDate) {
+    const match = dayFirstDate || monthFirstDate;
+    const day = (dayFirstDate ? match[1] : match[2]).padStart(2, '0');
+    const monthName = (dayFirstDate ? match[2] : match[1]).toLowerCase();
+    const month = String(monthNumbers[monthName]).padStart(2, '0');
+    const rawYear = match[3];
+    const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
+    return `${year}-${month}-${day}`;
   }
 
   return '';
@@ -124,12 +175,17 @@ export async function runReceiptOcr(receipt) {
       throw new Error('No usable OCR values were found. You can still enter receipt details manually.');
     }
 
-    return updateReceiptReview(receipt.id, {
+    const updatedReceipt = await updateReceiptReview(receipt.id, {
       merchant_name: extracted.merchant_name || receipt.merchant_name || '',
-      receipt_date: extracted.receipt_date || receipt.receipt_date || '',
+      receipt_date: extracted.receipt_date || '',
       total_amount: extracted.total_amount || receipt.total_amount || 0,
       processing_status: 'completed'
     });
+
+    return {
+      ...updatedReceipt,
+      ocr_text: result.data.text || ''
+    };
   } catch (error) {
     await updateReceiptStatus(receipt.id, 'failed');
     throw error;

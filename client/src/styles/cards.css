@@ -449,6 +449,21 @@
   border-bottom: 1px solid #eef4fb;
 }
 
+.receipt-line-items {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid #eef4fb;
+}
+
+.receipt-line-items h3 {
+  margin: 0 0 14px;
+}
+
+.receipt-line-items > .muted-copy {
+  margin: 0;
+  line-height: 1.55;
+}
+
 .statement-import-row:last-child {
   border-bottom: 0;
 }

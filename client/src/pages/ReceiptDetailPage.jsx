@@ -9,7 +9,6 @@ export default function ReceiptDetailPage({
   onBack,
   onCreateTransaction,
   onLinkTransaction,
-  onRunOcr,
   onSaveReview,
   projectTags = [],
   receipt
@@ -21,25 +20,20 @@ export default function ReceiptDetailPage({
     receipt_date: receipt.receipt_date || '',
     total_amount: receipt.total_amount || 0
   });
-  const [transactionForm, setTransactionForm] = useState({
-    account_id: '',
-    category_id: '',
-    project_tag_id: ''
-  });
+  const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
+  const [transactionForm, setTransactionForm] = useState(() => (
+    getSuggestedTransactionFields(receipt, accounts, categoryOptions, projectTags)
+  ));
   const [saving, setSaving] = useState(false);
   const [creatingTransaction, setCreatingTransaction] = useState(false);
-  const [processing, setProcessing] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-  const [error, setError] = useState('');
-  const [touchedFields, setTouchedFields] = useState(new Set());
+  const [error, setError] = useState(receipt.ocr_error || '');
   const [pendingDuplicate, setPendingDuplicate] = useState(null);
   const [pendingTransaction, setPendingTransaction] = useState(null);
-  const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
   const fileExpired = Boolean(receipt.file_deleted_at);
   const canPreviewFile = Boolean(receipt.image_url && !fileExpired);
 
   function updateField(field, value) {
-    setTouchedFields((currentFields) => new Set(currentFields).add(field));
     setForm((currentForm) => ({
       ...currentForm,
       [field]: value
@@ -64,44 +58,6 @@ export default function ReceiptDetailPage({
       setError(err.message || 'Unable to save receipt review.');
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleRunOcr() {
-    setError('');
-    setProcessing(true);
-
-    try {
-      const processedReceipt = await onRunOcr(receipt);
-      const nextValues = {
-        merchant_name: processedReceipt?.merchant_name || '',
-        receipt_date: processedReceipt?.receipt_date || '',
-        total_amount: processedReceipt?.total_amount || 0
-      };
-
-      if (!nextValues.merchant_name && !nextValues.receipt_date && !nextValues.total_amount) {
-        setError('No usable OCR values were found. You can still enter receipt details manually.');
-        return;
-      }
-
-      setForm((currentForm) => ({
-        merchant_name: touchedFields.has('merchant_name') ? currentForm.merchant_name : nextValues.merchant_name || currentForm.merchant_name,
-        receipt_date: touchedFields.has('receipt_date') ? currentForm.receipt_date : nextValues.receipt_date || currentForm.receipt_date,
-        total_amount: touchedFields.has('total_amount') ? currentForm.total_amount : nextValues.total_amount || currentForm.total_amount
-      }));
-
-      const suggestedCategoryId = getSuggestedCategoryId(nextValues.merchant_name, categoryOptions);
-
-      if (suggestedCategoryId && !transactionForm.category_id) {
-        setTransactionForm((currentForm) => ({
-          ...currentForm,
-          category_id: suggestedCategoryId
-        }));
-      }
-    } catch (err) {
-      setError(err.message || 'Unable to run OCR.');
-    } finally {
-      setProcessing(false);
     }
   }
 
@@ -178,9 +134,6 @@ export default function ReceiptDetailPage({
           <h1>{receipt.merchant_name || 'Untitled Receipt'}</h1>
         </div>
         <div className="button-row">
-          <button className="secondary-button" disabled={processing || !canPreviewFile} onClick={handleRunOcr}>
-            {processing ? 'Processing...' : 'Run OCR'}
-          </button>
           <button className="secondary-button" onClick={onBack}>Back to Receipts</button>
         </div>
       </section>
@@ -250,19 +203,21 @@ export default function ReceiptDetailPage({
             </div>
           </form>
 
-          <h3>Line Items</h3>
-          {items.length === 0 ? (
-            <p className="muted-copy">Line item OCR is not connected yet. Merchant, date, and total are available for review.</p>
-          ) : (
-            <div className="receipt-item-list">
-              {items.map((item) => (
-                <span key={item.id}>
-                  <strong>{item.item_name}</strong>
-                  {formatCurrency(item.line_total || 0)}
-                </span>
-              ))}
-            </div>
-          )}
+          <section className="receipt-line-items">
+            <h3>Line Items</h3>
+            {items.length === 0 ? (
+              <p className="muted-copy">Line item OCR is not connected yet. Merchant, date, and total are available for review.</p>
+            ) : (
+              <div className="receipt-item-list">
+                {items.map((item) => (
+                  <span key={item.id}>
+                    <strong>{item.item_name}</strong>
+                    {formatCurrency(item.line_total || 0)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
         </article>
 
         <article className="panel">
@@ -368,14 +323,49 @@ export default function ReceiptDetailPage({
   );
 }
 
-function getSuggestedCategoryId(merchantName, categoryOptions) {
-  const text = String(merchantName || '').toLowerCase();
+function normalizeSuggestionText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getSuggestedAccountId(ocrText, accounts) {
+  const text = normalizeSuggestionText(ocrText);
+  const sortedAccounts = [...accounts].sort((first, second) => second.name.length - first.name.length);
+
+  const matchedAccount = sortedAccounts.find((account) => {
+    const accountName = normalizeSuggestionText(account.name);
+    return accountName.length >= 3 && new RegExp(`\\b${accountName.replace(/\s+/g, '\\s+')}\\b`, 'i').test(text);
+  });
+
+  if (matchedAccount) {
+    return matchedAccount.id;
+  }
+
+  if (/\b(cash|tunai)\b/i.test(text)) {
+    return accounts.find((account) => account.type === 'Cash' || /^cash$/i.test(account.name))?.id || '';
+  }
+
+  return '';
+}
+
+function getSuggestedCategoryId(value, categoryOptions) {
+  const text = normalizeSuggestionText(value);
   const rules = [
-    { pattern: /(coffee|kopi|cafe|restaurant|warung|food|drink|makan)/, category: 'Food & Drink' },
-    { pattern: /(grocery|mart|supermarket|fresh|produce)/, category: 'Groceries' },
-    { pattern: /(grab|gojek|taxi|parking|fuel|toll|transport)/, category: 'Transport' },
-    { pattern: /(doctor|clinic|pharmacy|medicine|health)/, category: 'Health' },
-    { pattern: /(netflix|spotify|subscription|cloud|app)/, category: 'Subscription' }
+    { pattern: /\b(coffee|kopi|cafe|latte|espresso|bakery)\b/, category: 'Coffee & Snacks' },
+    { pattern: /\b(restaurant|warung|bakmi|noodle|dining|makan|food court)\b/, category: 'Dining Out' },
+    { pattern: /\b(gofood|grabfood|delivery)\b/, category: 'Delivery' },
+    { pattern: /\b(supermarket|minimarket|grocery|groceries|indomaret|alfamart|ranch market|lotte mart)\b/, category: 'Household Groceries' },
+    { pattern: /\b(fruit|vegetable|produce|sayur|buah)\b/, category: 'Fresh Produce' },
+    { pattern: /\b(spbu|shell|pertamina|fuel|bensin)\b/, category: 'Fuel' },
+    { pattern: /\b(grab|gojek|taxi|ride hailing)\b/, category: 'Ride Hailing' },
+    { pattern: /\b(parking|parkir|toll|tol)\b/, category: 'Parking & Tolls' },
+    { pattern: /\b(doctor|clinic|pharmacy|medicine|apotek|hospital)\b/, category: 'Doctor & Medicine' },
+    { pattern: /\b(netflix|spotify|streaming)\b/, category: 'Media Streaming' },
+    { pattern: /\b(clothing|fashion|apparel|shirt|shoes)\b/, category: 'Clothing' },
+    { pattern: /\b(hotel|resort)\b/, category: 'Hotel' },
+    { pattern: /\b(flight|airline)\b/, category: 'Flight' }
   ];
   const matchedRule = rules.find((rule) => rule.pattern.test(text));
 
@@ -383,6 +373,20 @@ function getSuggestedCategoryId(merchantName, categoryOptions) {
     return '';
   }
 
-  const option = categoryOptions.find((category) => category.displayName.includes(matchedRule.category));
+  const option = categoryOptions.find((category) => (
+    category.name.toLowerCase() === matchedRule.category.toLowerCase()
+  ));
   return option?.id || '';
+}
+
+function getSuggestedTransactionFields(receipt, accounts, categoryOptions, projectTags) {
+  const suggestionText = [receipt.merchant_name, receipt.ocr_text].filter(Boolean).join(' ');
+  const categoryId = getSuggestedCategoryId(suggestionText, categoryOptions);
+  const dailyLifeTag = projectTags.find((tag) => /^daily life$/i.test(tag.name));
+
+  return {
+    account_id: getSuggestedAccountId(receipt.ocr_text, accounts),
+    category_id: categoryId,
+    project_tag_id: categoryId ? dailyLifeTag?.id || '' : ''
+  };
 }

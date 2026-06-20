@@ -6,14 +6,12 @@ import { getCategories } from '../services/categoryService.js';
 import { runReceiptOcr } from '../services/ocrService.js';
 import { getProjectTags } from '../services/projectTagService.js';
 import { createReceipt, createTransactionFromReceipt, deleteReceipt, getReceipt, getReceipts, linkReceiptToTransaction, updateReceiptReview } from '../services/receiptService.js';
-import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
-
-const today = new Date().toISOString().slice(0, 10);
+import { formatCurrency } from '../utils/format.js';
 
 const emptyForm = {
   file: null,
   merchant_name: '',
-  receipt_date: today,
+  receipt_date: '',
   total_amount: 0,
   processing_status: 'pending'
 };
@@ -233,16 +231,33 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
     setSheetMode(null);
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  async function handlePreviewOcr() {
     setError('');
     setSaving(true);
 
     try {
       const receipt = await createReceipt(form);
+      let processedReceipt;
+
+      try {
+        processedReceipt = await runReceiptOcr(receipt);
+      } catch (ocrError) {
+        const detailedReceipt = await getReceipt(receipt.id);
+        closeReceiptSheet();
+        setSelectedReceipt({
+          ...detailedReceipt,
+          ocr_error: ocrError.message || 'OCR could not read this receipt. Enter the details manually.'
+        });
+        await loadReceipts();
+        return;
+      }
+
       closeReceiptSheet();
       const detailedReceipt = await getReceipt(receipt.id);
-      setSelectedReceipt(detailedReceipt);
+      setSelectedReceipt({
+        ...detailedReceipt,
+        ocr_text: processedReceipt.ocr_text || ''
+      });
       await loadReceipts();
     } catch (err) {
       setError(err.message || 'Unable to save receipt.');
@@ -279,15 +294,6 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
     }
   }
 
-  async function handleRunOcr(receipt) {
-    setError('');
-    const processedReceipt = await runReceiptOcr(receipt);
-    const detailedReceipt = await getReceipt(processedReceipt.id);
-    setSelectedReceipt(detailedReceipt);
-    await loadReceipts();
-    return detailedReceipt;
-  }
-
   async function handleSaveReview(id, review) {
     const updatedReceipt = await updateReceiptReview(id, {
       ...review,
@@ -319,7 +325,6 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
         categories={categories}
         onBack={() => setSelectedReceipt(null)}
         onCreateTransaction={handleCreateTransaction}
-        onRunOcr={handleRunOcr}
         onSaveReview={handleSaveReview}
         onLinkTransaction={handleLinkReceiptTransaction}
         projectTags={projectTags}
@@ -358,7 +363,7 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
                 <div className="bottom-sheet-header">
                   <div>
                     <p className="section-kicker">{fileKind === 'pdf' ? 'PDF receipt' : 'Receipt image'}</p>
-                    <h2>Save Receipt</h2>
+                    <h2>Scan Receipt</h2>
                   </div>
                   <button className="text-button" onClick={closeReceiptSheet} type="button">Cancel</button>
                 </div>
@@ -368,7 +373,7 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
                   <span>Receipt files are kept for 90 days to save storage. The transaction entry and report data will remain unless you delete them.</span>
                 </div>
 
-                <form className="form-grid" onSubmit={handleSubmit}>
+                <div className="form-grid">
                   {previewUrl && (
                     <div className="receipt-upload-preview span-2">
                       <img alt="Receipt upload preview" src={previewUrl} />
@@ -390,41 +395,13 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
                     </p>
                   )}
 
-                  <label className="field-group">
-                    Merchant
-                    <input
-                      onChange={(event) => updateField('merchant_name', event.target.value)}
-                      placeholder="Merchant name"
-                      value={form.merchant_name}
-                    />
-                  </label>
-
-                  <label className="field-group">
-                    Receipt Date
-                    <input
-                      onChange={(event) => updateField('receipt_date', event.target.value)}
-                      type="date"
-                      value={form.receipt_date}
-                    />
-                  </label>
-
-                  <label className="field-group">
-                    Total Amount
-                    <input
-                      inputMode="numeric"
-                      onChange={(event) => updateField('total_amount', parseCurrencyInput(event.target.value))}
-                      type="text"
-                      value={formatCurrency(form.total_amount || 0)}
-                    />
-                  </label>
-
                   <div className="modal-actions span-2">
                     <button className="secondary-button" onClick={closeReceiptSheet} type="button">Cancel</button>
-                    <button className="primary-button" disabled={saving || convertingFile} type="submit">
-                      {saving ? 'Saving...' : convertingFile ? 'Converting...' : 'Save Receipt'}
+                    <button className="primary-button" disabled={saving || convertingFile} onClick={handlePreviewOcr} type="button">
+                      {saving ? 'Reading receipt...' : convertingFile ? 'Converting...' : 'Run OCR'}
                     </button>
                   </div>
-                </form>
+                </div>
               </>
             )}
           </section>
