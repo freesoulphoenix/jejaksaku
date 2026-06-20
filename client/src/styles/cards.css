@@ -1092,7 +1092,7 @@
   display: none;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 767px) {
   .activity-link-badge-desktop {
     display: none;
   }
