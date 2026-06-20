@@ -484,4 +484,8 @@
     position: absolute;
     bottom: 0;
   }
+
+  .mobile-nav-scan {
+    bottom: calc(var(--mobile-nav-scan-bottom) + var(--mobile-nav-notch-gap) + 8px);
+  }
 }
