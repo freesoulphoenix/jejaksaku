@@ -83,6 +83,7 @@ export default function StatementImportPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
   const sourceAccounts = useMemo(() => (
     accounts.filter((account) => ['Bank', 'E-Wallet'].includes(account.type))
@@ -155,6 +156,15 @@ export default function StatementImportPage() {
   useEffect(() => {
     loadImports();
   }, []);
+
+  useEffect(() => {
+    if (!success) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => setSuccess(''), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [success]);
 
   useEffect(() => {
     if (loading || sourceOptions.includes(sourceName)) {
@@ -575,11 +585,13 @@ export default function StatementImportPage() {
     setSaving(true);
 
     try {
+      setSuccess('');
       const { match, remainingRows, row } = pendingMatch;
 
       if (match.type === 'existing_transaction') {
         await updateImportedTransactionStatus(row.id, 'duplicate', match.target.id);
         setRowStatus(row.id, 'duplicate');
+        setSuccess('Statement entry linked to the existing transaction.');
       } else {
         const transaction = await createTransactionFromImportedRow(row);
         await linkDuePayment(match.target.id, transaction.id);
@@ -623,6 +635,7 @@ export default function StatementImportPage() {
       </section>
 
       {error && <p className="form-message error">{error}</p>}
+      {success && <p className="form-message success" role="status">{success}</p>}
 
       <section className="import-panel">
         <div>

@@ -3,6 +3,15 @@ import { getCategoryOptions } from '../utils/categoryOptions.js';
 
 const today = new Date().toISOString().slice(0, 10);
 
+function LinkIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" height="18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="18">
+      <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.15 1.15" />
+      <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.15-1.15" />
+    </svg>
+  );
+}
+
 function getInitialForm(transaction) {
   return {
     transaction_type: transaction?.transaction_type || 'expense',
@@ -12,6 +21,8 @@ function getInitialForm(transaction) {
     to_account_id: transaction?.to_account_id || '',
     category_id: transaction?.category_id || '',
     project_tag_id: transaction?.project_tag_id || '',
+    receipt_id: transaction?.receipt_id || null,
+    imported_transaction_id: transaction?.imported_transaction_id || null,
     transaction_date: transaction?.transaction_date || today,
     description: transaction?.description || '',
     transfer_fee: transaction?.transfer_fee || 0,
@@ -26,11 +37,14 @@ export default function AddTransactionModal({
   projectTags = [],
   transaction = null,
   onClose,
-  onSave
+  onNavigateToImports,
+  onSave,
+  onUnlinkStatement
 }) {
   const [form, setForm] = useState(() => getInitialForm(transaction));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [linkMessage, setLinkMessage] = useState('');
   const isTransfer = form.transaction_type === 'transfer';
   const categoryOptions = useMemo(() => (
     getCategoryOptions(categories, form.transaction_type === 'transfer' ? null : form.transaction_type)
@@ -65,6 +79,49 @@ export default function AddTransactionModal({
     }
   }
 
+  async function handleUnlinkStatement() {
+    if (!onUnlinkStatement || !transaction) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Unlink this bank statement entry? The transaction will remain, and the statement row will return to the review queue.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setLinkMessage('');
+    setSaving(true);
+
+    try {
+      await onUnlinkStatement(transaction);
+      setForm((currentForm) => ({
+        ...currentForm,
+        imported_transaction_id: null
+      }));
+      setLinkMessage('Statement entry unlinked. The transaction was kept.');
+    } catch (err) {
+      setError(err.message || 'Unable to unlink statement entry.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const importedRow = transaction?.imported_transaction;
+  const statementImport = importedRow?.statement_import;
+  const isStatementMatch = importedRow?.import_status === 'duplicate';
+  const hasReceipt = Boolean(transaction?.receipt_id);
+  const sourceTitle = isStatementMatch
+    ? (hasReceipt ? 'Receipt and statement linked' : 'Statement entry linked')
+    : importedRow
+      ? 'Imported from statement'
+      : hasReceipt
+        ? 'Created from receipt'
+        : '';
+
   return (
     <div className="modal-backdrop" role="presentation">
       <section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="add-transaction-title">
@@ -78,6 +135,28 @@ export default function AddTransactionModal({
 
         <form className="form-grid" onSubmit={handleSubmit}>
           {error && <p className="form-message error span-2">{error}</p>}
+          {linkMessage && <p className="form-message success span-2">{linkMessage}</p>}
+          {transaction && sourceTitle && (
+            <section className="transaction-link-panel span-2" aria-label="Transaction source">
+              <div className="transaction-link-heading">
+                <span className="transaction-link-icon"><LinkIcon /></span>
+                <div>
+                  <strong>{sourceTitle}</strong>
+                  <small>
+                    {statementImport?.bank_name || statementImport?.file_name || transaction.receipt?.merchant_name || 'Source record available'}
+                  </small>
+                </div>
+              </div>
+              <div className="transaction-link-actions">
+                {importedRow && onNavigateToImports && (
+                  <button className="text-button" onClick={onNavigateToImports} type="button">Open Imports</button>
+                )}
+                {isStatementMatch && onUnlinkStatement && (
+                  <button className="text-button danger" disabled={saving} onClick={handleUnlinkStatement} type="button">Unlink</button>
+                )}
+              </div>
+            </section>
+          )}
           <label className="field-group">
             Type
             <select

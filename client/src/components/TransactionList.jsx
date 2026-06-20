@@ -55,6 +55,15 @@ function FlatIcon({ name }) {
     );
   }
 
+  if (name === 'link') {
+    return (
+      <svg {...commonProps}>
+        <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.15 1.15" />
+        <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.15-1.15" />
+      </svg>
+    );
+  }
+
   return null;
 }
 
@@ -87,6 +96,22 @@ function getTransactionSubtitle(transaction) {
   const account = getTransactionAccountName(transaction);
 
   return [category, account].filter(Boolean).join(' - ');
+}
+
+function getTransactionLinkLabel(transaction) {
+  if (transaction.imported_transaction?.import_status === 'duplicate') {
+    return transaction.receipt_id ? 'Receipt + statement linked' : 'Statement linked';
+  }
+
+  if (transaction.imported_transaction_id) {
+    return 'Statement import';
+  }
+
+  if (transaction.receipt_id) {
+    return 'Receipt';
+  }
+
+  return '';
 }
 
 function formatDisplayDate(date) {
@@ -162,6 +187,7 @@ function ActivityTransactionList({
         ]
           .filter(Boolean)
           .join(' ');
+        const linkLabel = getTransactionLinkLabel(transaction);
 
         return (
           <div className={rowClassName} key={transaction.id}>
@@ -183,7 +209,15 @@ function ActivityTransactionList({
               </button>
 
               <div className="activity-transaction-main">
-                <strong>{getTransactionTitle(transaction)}</strong>
+                <div className="activity-transaction-title-row">
+                  <strong>{getTransactionTitle(transaction)}</strong>
+                  {linkLabel && (
+                    <span className="activity-link-badge" title={linkLabel}>
+                      <FlatIcon name="link" />
+                      {linkLabel}
+                    </span>
+                  )}
+                </div>
                 <small>{subtitle}</small>
               </div>
 

@@ -8,6 +8,7 @@ import {
   createTransaction,
   deleteTransaction,
   getTransactions,
+  unlinkTransactionFromStatement,
   updateTransaction
 } from '../services/transactionService.js';
 import {
@@ -50,7 +51,7 @@ function FlatIcon({ name }) {
   return null;
 }
 
-export default function TransactionsPage() {
+export default function TransactionsPage({ onNavigate }) {
   const [transactions, setTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -206,6 +207,14 @@ export default function TransactionsPage() {
     }
   }
 
+  async function handleUnlinkStatement(transaction) {
+    await unlinkTransactionFromStatement(transaction.id);
+    const nextTransactions = await getTransactions();
+    setTransactions(nextTransactions);
+    const refreshedTransaction = nextTransactions.find((item) => item.id === transaction.id);
+    setEditingTransaction(refreshedTransaction || null);
+  }
+
   return (
     <div className="page-stack activity-page">
       <section className="page-heading activity-page-heading">
@@ -278,7 +287,12 @@ export default function TransactionsPage() {
           accounts={accounts}
           categories={categories}
           onClose={closeModal}
+          onNavigateToImports={() => {
+            closeModal();
+            onNavigate?.('statements');
+          }}
           onSave={handleSave}
+          onUnlinkStatement={handleUnlinkStatement}
           projectTags={projectTags}
           transaction={editingTransaction}
         />

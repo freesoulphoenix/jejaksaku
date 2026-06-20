@@ -201,6 +201,74 @@ textarea:focus {
   background: #ecfdf5;
 }
 
+.transaction-link-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  border-radius: 14px;
+  background: var(--color-primary-soft);
+}
+
+.transaction-link-heading,
+.transaction-link-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.transaction-link-heading {
+  min-width: 0;
+}
+
+.transaction-link-heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.transaction-link-heading strong {
+  color: var(--color-text);
+  font-size: 0.82rem;
+}
+
+.transaction-link-heading small {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-link-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.transaction-link-actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 560px) {
+  .transaction-link-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .transaction-link-actions {
+    justify-content: flex-end;
+  }
+
+}
+
 .settings-panel-wide {
   grid-column: 1 / -1;
 }

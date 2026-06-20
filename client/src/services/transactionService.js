@@ -147,7 +147,14 @@ export async function getTransactions() {
       from_account:from_account_id (id, name, type),
       to_account:to_account_id (id, name, type),
       categories:category_id (id, name, type),
-      project_tags:project_tag_id (id, name)
+      project_tags:project_tag_id (id, name),
+      receipt:receipt_id (id, merchant_name, receipt_date),
+      imported_transaction:imported_transaction_id (
+        id,
+        import_status,
+        transaction_date,
+        statement_import:statement_import_id (id, file_name, bank_name)
+      )
     `)
     .eq('user_profile_id', userProfileId)
     .order('transaction_date', { ascending: false })
@@ -158,6 +165,67 @@ export async function getTransactions() {
   }
 
   return data;
+}
+
+export async function unlinkTransactionFromStatement(id) {
+  const { client, userProfileId } = await getScopedQuery();
+  const { data: transaction, error: transactionError } = await client
+    .from('transactions')
+    .select('id, imported_transaction_id')
+    .eq('id', id)
+    .eq('user_profile_id', userProfileId)
+    .single();
+
+  if (transactionError) {
+    throw transactionError;
+  }
+
+  if (!transaction.imported_transaction_id) {
+    throw new Error('This transaction is not linked to a statement entry.');
+  }
+
+  const { data: importedRow, error: importedRowError } = await client
+    .from('imported_transactions')
+    .select('id, import_status')
+    .eq('id', transaction.imported_transaction_id)
+    .eq('user_profile_id', userProfileId)
+    .single();
+
+  if (importedRowError) {
+    throw importedRowError;
+  }
+
+  if (importedRow.import_status !== 'duplicate') {
+    throw new Error('Imported statement transactions cannot be unlinked.');
+  }
+
+  const { error: unlinkError } = await client
+    .from('transactions')
+    .update({ imported_transaction_id: null })
+    .eq('id', id)
+    .eq('user_profile_id', userProfileId);
+
+  if (unlinkError) {
+    throw unlinkError;
+  }
+
+  const { error: restoreRowError } = await client
+    .from('imported_transactions')
+    .update({
+      created_transaction_id: null,
+      import_status: 'pending'
+    })
+    .eq('id', importedRow.id)
+    .eq('user_profile_id', userProfileId);
+
+  if (restoreRowError) {
+    await client
+      .from('transactions')
+      .update({ imported_transaction_id: importedRow.id })
+      .eq('id', id)
+      .eq('user_profile_id', userProfileId);
+    throw restoreRowError;
+  }
 }
 
 export async function createTransaction(transaction) {

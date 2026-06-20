@@ -1055,6 +1055,47 @@
   white-space: nowrap;
 }
 
+.activity-transaction-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-transaction-title-row > strong {
+  min-width: 0;
+}
+
+.activity-link-badge {
+  display: inline-flex;
+  min-height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #0b6fb8;
+  background: #e4f3ff;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.activity-link-badge > svg {
+  width: 13px;
+  height: 13px;
+}
+
+@media (max-width: 560px) {
+  .activity-link-badge {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .activity-transaction-main small {
   overflow: hidden;
   color: var(--color-muted);
