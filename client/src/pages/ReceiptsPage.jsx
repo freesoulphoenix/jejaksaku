@@ -368,6 +368,12 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
                   <button className="text-button" onClick={closeReceiptSheet} type="button">Cancel</button>
                 </div>
 
+                <div className="receipt-scan-actions">
+                  <button className="primary-button" disabled={saving || convertingFile} onClick={handlePreviewOcr} type="button">
+                    {saving ? 'Reading receipt...' : convertingFile ? 'Converting...' : 'Run OCR'}
+                  </button>
+                </div>
+
                 <div className="retention-notice">
                   <strong>90-day file retention</strong>
                   <span>Receipt files are kept for 90 days to save storage. The transaction entry and report data will remain unless you delete them.</span>
@@ -395,12 +401,6 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
                     </p>
                   )}
 
-                  <div className="modal-actions span-2">
-                    <button className="secondary-button" onClick={closeReceiptSheet} type="button">Cancel</button>
-                    <button className="primary-button" disabled={saving || convertingFile} onClick={handlePreviewOcr} type="button">
-                      {saving ? 'Reading receipt...' : convertingFile ? 'Converting...' : 'Run OCR'}
-                    </button>
-                  </div>
                 </div>
               </>
             )}
