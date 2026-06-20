@@ -1080,40 +1080,13 @@
   font-style: normal;
   font-weight: 900;
   line-height: 1;
+  justify-self: start;
   white-space: nowrap;
 }
 
 .activity-link-badge > svg {
   width: 13px;
   height: 13px;
-}
-
-.activity-link-badge-mobile {
-  display: none;
-}
-
-@media (max-width: 767px) {
-  .activity-link-badge-desktop {
-    display: none;
-  }
-
-  .activity-transaction-tools {
-    display: grid;
-    grid-template-columns: auto 22px 22px;
-    justify-items: center;
-  }
-
-  .activity-link-badge-mobile {
-    display: inline-flex;
-    grid-column: 1 / -1;
-    justify-self: end;
-  }
-
-  .activity-link-badge {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }
 
 .activity-transaction-main small {
