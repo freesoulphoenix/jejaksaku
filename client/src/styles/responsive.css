@@ -486,6 +486,6 @@
   }
 
   .mobile-nav-scan {
-    bottom: calc(var(--mobile-nav-scan-bottom) + var(--mobile-nav-notch-gap) + 28px);
+    bottom: calc(var(--mobile-nav-scan-bottom) + var(--mobile-nav-notch-gap) + 15px);
   }
 }
