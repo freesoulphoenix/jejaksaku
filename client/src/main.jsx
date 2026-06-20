@@ -17,13 +17,44 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 );
 
-registerSW({
-  immediate: true,
-  onRegisteredSW(swUrl, registration) {
-    if (registration) {
-      setInterval(() => {
-        registration.update();
-      }, 60 * 60 * 1000);
+let isReloadingForUpdate = false;
+const hadServiceWorkerController = Boolean(navigator.serviceWorker?.controller);
+
+if (navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadServiceWorkerController || isReloadingForUpdate) {
+      return;
     }
+
+    isReloadingForUpdate = true;
+    window.location.reload();
+  });
+}
+
+let updateServiceWorker = () => Promise.resolve();
+
+updateServiceWorker = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    updateServiceWorker(true);
+  },
+  onRegisteredSW(swUrl, registration) {
+    if (!registration) {
+      return;
+    }
+
+    const checkForUpdate = () => registration.update().catch(() => undefined);
+    const intervalId = window.setInterval(checkForUpdate, 15 * 60 * 1000);
+
+    checkForUpdate();
+    window.addEventListener('focus', checkForUpdate);
+    window.addEventListener('online', checkForUpdate);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkForUpdate();
+      }
+    });
+
+    window.addEventListener('pagehide', () => window.clearInterval(intervalId), { once: true });
   }
 });

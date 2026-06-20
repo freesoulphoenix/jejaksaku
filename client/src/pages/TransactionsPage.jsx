@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import AddTransactionModal from '../components/AddTransactionModal.jsx';
 import TransactionList from '../components/TransactionList.jsx';
 import { getAccounts } from '../services/accountService.js';
@@ -64,9 +65,9 @@ export default function TransactionsPage({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadPageData = useCallback(async function loadPageData() {
+  const loadPageData = useCallback(async function loadPageData(background = false) {
     setError('');
-    setLoading(true);
+    if (!background) setLoading(true);
 
     try {
       const [
@@ -88,13 +89,15 @@ export default function TransactionsPage({ onNavigate }) {
     } catch (err) {
       setError(err.message || 'Unable to load transactions.');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadPageData();
   }, [loadPageData]);
+
+  useRefreshOnResume(() => loadPageData(true));
 
   useEffect(() => {
     if (!pendingDeleteId) {

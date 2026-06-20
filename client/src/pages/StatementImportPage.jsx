@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { findSmartMatch } from '../services/matchingService.js';
@@ -131,9 +132,9 @@ export default function StatementImportPage() {
     };
   }, [activeRows, processedRows, selectedRows]);
 
-  async function loadImports() {
+  async function loadImports(background = false) {
     setError('');
-    setLoading(true);
+    if (!background) setLoading(true);
 
     try {
       const [importData, accountData, categoryData, projectTagData] = await Promise.all([
@@ -149,13 +150,15 @@ export default function StatementImportPage() {
     } catch (err) {
       setError(err.message || 'Unable to load imports.');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }
 
   useEffect(() => {
     loadImports();
   }, []);
+
+  useRefreshOnResume(() => loadImports(true));
 
   useEffect(() => {
     if (!success) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import DueItem from '../components/DueItem.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
@@ -216,9 +217,9 @@ export default function UpcomingDuePage() {
   const reminderItems = useMemo(() => getReminderItems(dueItems), [dueItems]);
   const reminderBannerTone = useMemo(() => getReminderBannerTone(reminderItems), [reminderItems]);
 
-  async function loadPageData() {
+  async function loadPageData(background = false) {
     setError('');
-    setLoading(true);
+    if (!background) setLoading(true);
 
     try {
       const [dueData, accountData, categoryData] = await Promise.all([
@@ -233,13 +234,15 @@ export default function UpcomingDuePage() {
     } catch (err) {
       setError(err.message || 'Unable to load upcoming due.');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }
 
   useEffect(() => {
     loadPageData();
   }, []);
+
+  useRefreshOnResume(() => loadPageData(true));
 
   useEffect(() => {
     if (!activeDeleteId) {

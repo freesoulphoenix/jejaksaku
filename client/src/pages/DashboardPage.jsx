@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import StatCard from '../components/StatCard.jsx';
 import TransactionList from '../components/TransactionList.jsx';
 import { getDashboardData } from '../services/dashboardService.js';
@@ -52,9 +53,9 @@ export default function DashboardPage({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  async function loadDashboard() {
+  async function loadDashboard(background = false) {
     setError('');
-    setLoading(true);
+    if (!background) setLoading(true);
 
     try {
       const [data, dueData] = await Promise.all([
@@ -76,13 +77,15 @@ export default function DashboardPage({ onNavigate }) {
     } catch (err) {
       setError(err.message || 'Unable to load dashboard.');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }
 
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  useRefreshOnResume(() => loadDashboard(true));
 
   useEffect(() => {
     if (!activeDeleteRow) {

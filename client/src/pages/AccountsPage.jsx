@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import AccountCard from '../components/AccountCard.jsx';
 import {
   createAccount,
@@ -85,9 +86,9 @@ export default function AccountsPage() {
     }, {});
   }, [accounts]);
 
-  const loadAccounts = useCallback(async function loadAccounts() {
+  const loadAccounts = useCallback(async function loadAccounts(background = false) {
     setError('');
-    setLoading(true);
+    if (!background) setLoading(true);
 
     try {
       const [accountData, transactionData] = await Promise.all([
@@ -99,13 +100,15 @@ export default function AccountsPage() {
     } catch (err) {
       setError(err.message || 'Unable to load accounts.');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadAccounts();
   }, [loadAccounts]);
+
+  useRefreshOnResume(() => loadAccounts(true));
 
   useEffect(() => {
     if (!pendingDeleteId) {

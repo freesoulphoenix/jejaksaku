@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import ReceiptDetailPage from './ReceiptDetailPage.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
@@ -78,9 +79,9 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
   const [convertingFile, setConvertingFile] = useState(false);
   const [error, setError] = useState('');
 
-  async function loadReceipts() {
+  async function loadReceipts(background = false) {
     setError('');
-    setLoading(true);
+    if (!background) setLoading(true);
 
     try {
       const [receiptData, accountData, categoryData, projectTagData] = await Promise.all([
@@ -96,13 +97,15 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
     } catch (err) {
       setError(err.message || 'Unable to load receipts.');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }
 
   useEffect(() => {
     loadReceipts();
   }, []);
+
+  useRefreshOnResume(() => loadReceipts(true));
 
   useEffect(() => () => {
     if (previewUrl) {

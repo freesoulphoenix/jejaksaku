@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import { getReportData } from '../services/reportService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { getTransactionAccountName } from '../utils/balance.js';
@@ -71,9 +72,9 @@ export default function ReportsPage() {
     getCategoryOptions(reportData?.categories || [])
   ), [reportData?.categories]);
 
-  async function loadReports(nextFilters = filters) {
+  async function loadReports(nextFilters = filters, background = false) {
     setError('');
-    setLoading(true);
+    if (!background) setLoading(true);
 
     try {
       const data = await getReportData(nextFilters);
@@ -81,13 +82,15 @@ export default function ReportsPage() {
     } catch (err) {
       setError(err.message || 'Unable to load reports.');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }
 
   useEffect(() => {
     loadReports();
   }, []);
+
+  useRefreshOnResume(() => loadReports(filters, true));
 
   function updateFilter(field, value) {
     const nextFilters = {
