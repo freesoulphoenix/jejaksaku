@@ -1,4 +1,4 @@
-name: Deploy Dompet Daily to GitHub Pages
+name: Deploy Jejak Saku to GitHub Pages
 
 on:
   push:
