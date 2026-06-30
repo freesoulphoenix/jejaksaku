@@ -349,9 +349,12 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
     await loadReceipts();
   }
 
-  function clearReceiptSearch() {
+  function clearReceiptSearch(event) {
+    event?.preventDefault();
     setReceiptSearchTerm('');
-    receiptSearchInputRef.current?.focus();
+    window.requestAnimationFrame(() => {
+      receiptSearchInputRef.current?.focus();
+    });
   }
 
   if (selectedReceipt) {
@@ -397,10 +400,10 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
               aria-label="Clear search"
               className="activity-search-clear"
               onClick={clearReceiptSearch}
-              onMouseDown={(event) => event.preventDefault()}
+              onPointerDown={clearReceiptSearch}
               type="button"
             >
-              ×
+              &times;
             </button>
           )}
           <span className="activity-search-icon">

@@ -989,6 +989,7 @@
 .activity-search-clear {
   position: absolute;
   top: 50%;
+  z-index: 2;
   right: 43px;
   display: grid;
   width: 30px;
@@ -998,11 +999,18 @@
   border-radius: 11px;
   padding: 0;
   color: var(--color-muted);
-  background: var(--color-surface-soft);
+  background: transparent;
   font-size: 1.15rem;
   font-weight: 900;
   line-height: 1;
+  touch-action: manipulation;
   transform: translateY(-50%);
+}
+
+.activity-search-clear:hover,
+.activity-search-clear:active {
+  color: var(--color-primary);
+  background: transparent;
 }
 
 .activity-search-clear:focus-visible {

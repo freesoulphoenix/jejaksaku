@@ -224,9 +224,12 @@ export default function TransactionsPage({ onNavigate }) {
     setEditingTransaction(refreshedTransaction || null);
   }
 
-  function clearSearch() {
+  function clearSearch(event) {
+    event?.preventDefault();
     setSearchTerm('');
-    searchInputRef.current?.focus();
+    window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
   }
 
   return (
@@ -264,10 +267,10 @@ export default function TransactionsPage({ onNavigate }) {
               aria-label="Clear search"
               className="activity-search-clear"
               onClick={clearSearch}
-              onMouseDown={(event) => event.preventDefault()}
+              onPointerDown={clearSearch}
               type="button"
             >
-              ×
+              &times;
             </button>
           )}
           <span className="activity-search-icon">
