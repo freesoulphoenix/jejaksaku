@@ -25,7 +25,7 @@ export const defaultCategoryTree = [
   },
   {
     name: 'Shopping',
-    children: ['Clothing', 'Gadgets', 'Home Goods', 'Hobbies']
+    children: ['Fashion', 'Gadgets', 'Home Goods', 'Hobbies']
   },
   {
     name: 'Health',

@@ -402,7 +402,7 @@ function getSuggestedCategoryId(value, categoryOptions) {
     { pattern: /\b(parking|parkir|toll|tol)\b/, category: 'Parking & Tolls' },
     { pattern: /\b(doctor|clinic|pharmacy|medicine|apotek|hospital)\b/, category: 'Doctor & Medicine' },
     { pattern: /\b(netflix|spotify|streaming)\b/, category: 'Media Streaming' },
-    { pattern: /\b(clothing|fashion|apparel|shirt|shoes)\b/, category: 'Clothing' },
+    { pattern: /\b(clothing|fashion|apparel|shirt|shirts|dress|dresses|pants|jeans|jacket|jackets|shoes|shoe|sneakers|sneaker|bag|bags|watch|watches|accessories|accessory|uniqlo|zara|max\s*fashion|h\s*&?\s*m|hm)\b/, category: 'Fashion' },
     { pattern: /\b(hotel|resort)\b/, category: 'Hotel' },
     { pattern: /\b(flight|airline)\b/, category: 'Flight' }
   ];
@@ -414,6 +414,7 @@ function getSuggestedCategoryId(value, categoryOptions) {
 
   const option = categoryOptions.find((category) => (
     category.name.toLowerCase() === matchedRule.category.toLowerCase()
+    || (matchedRule.category === 'Fashion' && category.name.toLowerCase() === 'clothing')
   ));
   return option?.id || '';
 }
