@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
+import BoundedDatePicker from '../components/BoundedDatePicker.jsx';
 import DueItem from '../components/DueItem.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { createDuePaymentTransaction, createUpcomingDue, deleteUpcomingDue, getUpcomingDue, updateUpcomingDue } from '../services/upcomingDueService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
+import { getDueDateMax, getLocalIsoDate } from '../utils/dateBounds.js';
 import { formatCurrency } from '../utils/format.js';
 
-const today = new Date().toISOString().slice(0, 10);
-const dueDateMax = `${new Date().getFullYear() + 10}-12-31`;
+const today = getLocalIsoDate();
+const dueDateMax = getDueDateMax();
 
 function FlatIcon({ name }) {
   const commonProps = {
@@ -505,17 +507,14 @@ export default function UpcomingDuePage() {
               />
             </label>
 
-            <label className="field-group">
-              Due Date
-              <input
-                max={dueDateMax}
-                min={today}
-                onChange={(event) => updateField('due_date', event.target.value)}
-                required
-                type="date"
-                value={form.due_date}
-              />
-            </label>
+            <BoundedDatePicker
+              label="Due Date"
+              maxDate={dueDateMax}
+              minDate={today}
+              onChange={(value) => updateField('due_date', value)}
+              required
+              value={form.due_date}
+            />
 
             <label className="field-group">
               Remind Days Before

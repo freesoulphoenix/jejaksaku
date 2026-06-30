@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
+import BoundedDatePicker from './BoundedDatePicker.jsx';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
+import { earliestHistoricalDate, getLocalIsoDate } from '../utils/dateBounds.js';
 
-const today = new Date().toISOString().slice(0, 10);
-const earliestAllowedDate = '2000-01-01';
+const today = getLocalIsoDate();
 
 function LinkIcon() {
   return (
@@ -269,17 +270,14 @@ export default function AddTransactionModal({
               ))}
             </select>
           </label>
-          <label className="field-group">
-            Date
-            <input
-              max={today}
-              min={earliestAllowedDate}
-              onChange={(event) => updateField('transaction_date', event.target.value)}
-              required
-              type="date"
-              value={form.transaction_date}
-            />
-          </label>
+          <BoundedDatePicker
+            label="Date"
+            maxDate={today}
+            minDate={earliestHistoricalDate}
+            onChange={(value) => updateField('transaction_date', value)}
+            required
+            value={form.transaction_date}
+          />
           <label className="field-group span-2">
             Description
             <input

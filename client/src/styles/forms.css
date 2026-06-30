@@ -38,6 +38,40 @@ textarea:focus {
   font-weight: 700;
 }
 
+.bounded-date-picker {
+  align-content: start;
+}
+
+.bounded-date-fields {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.8fr) minmax(120px, 1.3fr) minmax(88px, 1fr);
+  gap: 8px;
+}
+
+.bounded-date-fields select {
+  min-width: 0;
+  padding-right: 10px;
+}
+
+.bounded-date-empty,
+.bounded-date-clear {
+  min-height: 44px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  color: var(--color-primary);
+  background: #ffffff;
+  font-weight: 800;
+}
+
+.bounded-date-clear {
+  min-height: auto;
+  justify-self: start;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 0.78rem;
+}
+
 .form-grid {
   display: grid;
   gap: 14px;
@@ -258,6 +292,10 @@ textarea:focus {
 }
 
 @media (max-width: 560px) {
+  .bounded-date-fields {
+    grid-template-columns: minmax(62px, 0.75fr) minmax(108px, 1.35fr) minmax(78px, 0.9fr);
+  }
+
   .transaction-link-panel {
     align-items: stretch;
     flex-direction: column;

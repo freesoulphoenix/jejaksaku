@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
+import BoundedDatePicker from '../components/BoundedDatePicker.jsx';
 import { findSmartMatch } from '../services/matchingService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
+import { earliestHistoricalDate, getLocalIsoDate } from '../utils/dateBounds.js';
 import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
 
-const today = new Date().toISOString().slice(0, 10);
-const earliestAllowedDate = '2000-01-01';
+const today = getLocalIsoDate();
 
 function getReceiptErrorMessage(error, fallback) {
   const message = error?.message || '';
@@ -218,16 +219,13 @@ export default function ReceiptDetailPage({
               />
             </label>
 
-            <label className="field-group">
-              Receipt Date
-              <input
-                max={today}
-                min={earliestAllowedDate}
-                onChange={(event) => updateField('receipt_date', event.target.value)}
-                type="date"
-                value={form.receipt_date}
-              />
-            </label>
+            <BoundedDatePicker
+              label="Receipt Date"
+              maxDate={today}
+              minDate={earliestHistoricalDate}
+              onChange={(value) => updateField('receipt_date', value)}
+              value={form.receipt_date}
+            />
 
             <label className="field-group">
               Total Amount

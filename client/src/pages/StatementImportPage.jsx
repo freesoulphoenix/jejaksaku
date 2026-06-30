@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
+import BoundedDatePicker from '../components/BoundedDatePicker.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { findSmartMatch } from '../services/matchingService.js';
@@ -20,11 +21,11 @@ import {
 import { createTransaction } from '../services/transactionService.js';
 import { linkDuePayment } from '../services/upcomingDueService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
+import { earliestHistoricalDate, getLocalIsoDate } from '../utils/dateBounds.js';
 import { formatCurrency } from '../utils/format.js';
-
-const today = new Date().toISOString().slice(0, 10);
-const earliestAllowedDate = '2000-01-01';
 import { resolveMoneyDirection } from '../utils/transactionDirection.js';
+
+const today = getLocalIsoDate();
 
 const allowedExtensions = ['pdf', 'csv', 'xlsx'];
 const activeStatuses = new Set(['pending', 'needs_review']);
@@ -818,16 +819,14 @@ export default function StatementImportPage() {
                           value={row.amount || 0}
                         />
                       </label>
-                      <label className="field-group">
-                        Date
-                        <input
-                          max={today}
-                          min={earliestAllowedDate}
-                          onChange={(event) => updateRowLocal(row.id, 'transaction_date', event.target.value)}
-                          type="date"
-                          value={row.transaction_date || ''}
-                        />
-                      </label>
+                      <BoundedDatePicker
+                        label="Date"
+                        maxDate={today}
+                        minDate={earliestHistoricalDate}
+                        onChange={(value) => updateRowLocal(row.id, 'transaction_date', value)}
+                        required
+                        value={row.transaction_date || ''}
+                      />
                       <label className="field-group">
                         Type
                         <select
