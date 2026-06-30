@@ -4,6 +4,7 @@ import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { findSmartMatch } from '../services/matchingService.js';
 import { getProjectTags } from '../services/projectTagService.js';
+import { getCurrentUserProfile } from '../services/userProfileService.js';
 import { parseStatementFile } from '../services/statementParserService.js';
 import {
   bulkUpdateImportedTransactions,
@@ -75,7 +76,8 @@ export default function StatementImportPage() {
   const [categories, setCategories] = useState([]);
   const [projectTags, setProjectTags] = useState([]);
   const [file, setFile] = useState(null);
-  const [sourceName, setSourceName] = useState('BCA');
+  const [sourceName, setSourceName] = useState('');
+  const [defaultAccountId, setDefaultAccountId] = useState('');
   const [importSort, setImportSort] = useState('latest');
   const [editingIds, setEditingIds] = useState(new Set());
   const [rawVisibleIds, setRawVisibleIds] = useState(new Set());
@@ -92,6 +94,9 @@ export default function StatementImportPage() {
   const sourceOptions = useMemo(() => (
     [...new Set([...sourceAccounts.map((account) => account.name), 'Generic PDF'])]
   ), [sourceAccounts]);
+  const defaultAccount = useMemo(() => (
+    accounts.find((account) => account.id === defaultAccountId) || null
+  ), [accounts, defaultAccountId]);
 
   const sortedImports = useMemo(() => (
     [...imports].sort((first, second) => {
@@ -137,16 +142,18 @@ export default function StatementImportPage() {
     if (!background) setLoading(true);
 
     try {
-      const [importData, accountData, categoryData, projectTagData] = await Promise.all([
+      const [importData, accountData, categoryData, projectTagData, profileData] = await Promise.all([
         getStatementImports(),
         getAccounts(),
         getCategories(),
-        getProjectTags()
+        getProjectTags(),
+        getCurrentUserProfile()
       ]);
       setImports(importData);
       setAccounts(accountData);
       setCategories(categoryData);
       setProjectTags(projectTagData);
+      setDefaultAccountId(profileData?.default_account_id || '');
     } catch (err) {
       setError(err.message || 'Unable to load imports.');
     } finally {
@@ -170,12 +177,19 @@ export default function StatementImportPage() {
   }, [success]);
 
   useEffect(() => {
-    if (loading || sourceOptions.includes(sourceName)) {
+    if (loading) {
       return;
     }
 
-    setSourceName(sourceOptions[0] || 'Generic PDF');
-  }, [loading, sourceName, sourceOptions]);
+    if (!sourceName) {
+      setSourceName(defaultAccount?.name || sourceOptions[0] || 'Generic PDF');
+      return;
+    }
+
+    if (!sourceOptions.includes(sourceName)) {
+      setSourceName(defaultAccount?.name || sourceOptions[0] || 'Generic PDF');
+    }
+  }, [defaultAccount?.name, loading, sourceName, sourceOptions]);
 
   function handleFileChange(event) {
     const selectedFile = event.target.files?.[0] || null;
@@ -338,9 +352,10 @@ export default function StatementImportPage() {
       });
       const rows = await parseStatementFile(file, sourceName);
       const sourceAccount = sourceAccounts.find((account) => account.name === sourceName);
+      const fallbackAccount = sourceAccount || defaultAccount;
       const rowsWithSourceAccount = rows.map((row) => ({
         ...row,
-        account_id: row.account_id || sourceAccount?.id || null
+        account_id: row.account_id || fallbackAccount?.id || null
       }));
       const savedRows = await saveImportedTransactions(statementImport.id, rowsWithSourceAccount);
       setFile(null);
@@ -493,13 +508,14 @@ export default function StatementImportPage() {
 
   async function createTransactionFromImportedRow(row) {
     const moneyDirection = resolveMoneyDirection(row);
+    const sourceAccountId = row.account_id || defaultAccountId || null;
     const transaction = await createTransaction({
-      account_id: row.account_id,
+      account_id: sourceAccountId,
       from_account_id: row.transaction_type === 'transfer'
-        ? row.from_account_id || (row.money_direction === 'out' ? row.account_id : null)
+        ? row.from_account_id || (row.money_direction === 'out' ? sourceAccountId : null)
         : null,
       to_account_id: row.transaction_type === 'transfer'
-        ? row.to_account_id || (row.money_direction === 'in' ? row.account_id : null)
+        ? row.to_account_id || (row.money_direction === 'in' ? sourceAccountId : null)
         : null,
       category_id: row.category_id,
       project_tag_id: row.project_tag_id,

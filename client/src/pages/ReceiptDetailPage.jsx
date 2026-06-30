@@ -6,6 +6,7 @@ import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
 export default function ReceiptDetailPage({
   accounts = [],
   categories = [],
+  defaultAccountId = '',
   onBack,
   onCreateTransaction,
   onLinkTransaction,
@@ -22,7 +23,7 @@ export default function ReceiptDetailPage({
   });
   const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
   const [transactionForm, setTransactionForm] = useState(() => (
-    getSuggestedTransactionFields(receipt, accounts, categoryOptions, projectTags)
+    getSuggestedTransactionFields(receipt, accounts, categoryOptions, projectTags, defaultAccountId)
   ));
   const [saving, setSaving] = useState(false);
   const [creatingTransaction, setCreatingTransaction] = useState(false);
@@ -379,13 +380,13 @@ function getSuggestedCategoryId(value, categoryOptions) {
   return option?.id || '';
 }
 
-function getSuggestedTransactionFields(receipt, accounts, categoryOptions, projectTags) {
+function getSuggestedTransactionFields(receipt, accounts, categoryOptions, projectTags, defaultAccountId = '') {
   const suggestionText = [receipt.merchant_name, receipt.ocr_text].filter(Boolean).join(' ');
   const categoryId = getSuggestedCategoryId(suggestionText, categoryOptions);
   const dailyLifeTag = projectTags.find((tag) => /^daily life$/i.test(tag.name));
 
   return {
-    account_id: getSuggestedAccountId(receipt.ocr_text, accounts),
+    account_id: getSuggestedAccountId(receipt.ocr_text, accounts) || defaultAccountId || '',
     category_id: categoryId,
     project_tag_id: categoryId ? dailyLifeTag?.id || '' : ''
   };

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext.jsx';
+import { getAccounts } from '../services/accountService.js';
 import { createCategory, deleteCategory, getCategories, updateCategory, updateCategoryOrder } from '../services/categoryService.js';
+import { getCurrentUserProfile, updateCurrentUserDefaultAccount } from '../services/userProfileService.js';
 
 const emptyCategoryForm = {
   id: null,
@@ -126,11 +128,16 @@ function groupCategories(categories) {
 
 export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const { language, setLanguage, supportedLanguages } = useLanguage();
+  const [accounts, setAccounts] = useState([]);
+  const [currentProfile, setCurrentProfile] = useState(null);
   const [categories, setCategories] = useState([]);
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
   const [categoryMessage, setCategoryMessage] = useState('');
   const [categoryError, setCategoryError] = useState('');
   const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [isSavingDefaultAccount, setIsSavingDefaultAccount] = useState(false);
+  const [defaultAccountMessage, setDefaultAccountMessage] = useState('');
+  const [defaultAccountError, setDefaultAccountError] = useState('');
   const [settingsView, setSettingsView] = useState('settings');
   const [selectedParentId, setSelectedParentId] = useState('');
   const [showSubcategories, setShowSubcategories] = useState(true);
@@ -156,7 +163,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const selectedChildren = selectedParent ? childrenByParentId.get(selectedParent.id) || [] : [];
 
   useEffect(() => {
-    loadCategories();
+    loadSettingsData();
   }, []);
 
   useEffect(() => {
@@ -182,12 +189,44 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     };
   }, [pendingDeleteId]);
 
+  async function loadSettingsData() {
+    try {
+      const [accountData, categoryData, profileData] = await Promise.all([
+        getAccounts(),
+        getCategories(),
+        getCurrentUserProfile()
+      ]);
+      setAccounts(accountData || []);
+      setCategories(categoryData || []);
+      setCurrentProfile(profileData || null);
+    } catch (error) {
+      setCategoryError(error.message);
+    }
+  }
+
   async function loadCategories() {
     try {
       const data = await getCategories();
       setCategories(data || []);
     } catch (error) {
       setCategoryError(error.message);
+    }
+  }
+
+  async function handleDefaultAccountChange(event) {
+    const nextDefaultAccountId = event.target.value;
+    setDefaultAccountMessage('');
+    setDefaultAccountError('');
+    setIsSavingDefaultAccount(true);
+
+    try {
+      const updatedProfile = await updateCurrentUserDefaultAccount(nextDefaultAccountId);
+      setCurrentProfile(updatedProfile);
+      setDefaultAccountMessage(nextDefaultAccountId ? 'Default source account saved.' : 'Default source account cleared.');
+    } catch (error) {
+      setDefaultAccountError(error.message || 'Unable to save default source account.');
+    } finally {
+      setIsSavingDefaultAccount(false);
     }
   }
 
@@ -631,6 +670,22 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <h2>Account</h2>
           </div>
           <p className="muted-copy">{user?.email}</p>
+          <label className="field-group">
+            Default transaction source
+            <select
+              disabled={isSavingDefaultAccount}
+              onChange={handleDefaultAccountChange}
+              value={currentProfile?.default_account_id || ''}
+            >
+              <option value="">No default account</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>{account.name}</option>
+              ))}
+            </select>
+          </label>
+          <p className="muted-copy">Used when manual entries, OCR receipts, or statement imports do not already provide a source account.</p>
+          {defaultAccountError && <p className="form-message error compact-message">{defaultAccountError}</p>}
+          {defaultAccountMessage && <p className="form-message success compact-message">{defaultAccountMessage}</p>}
           <div className="button-row">
             <button className="secondary-button" onClick={onLogout}>Logout</button>
           </div>

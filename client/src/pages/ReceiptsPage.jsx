@@ -5,6 +5,7 @@ import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { runReceiptOcr } from '../services/ocrService.js';
 import { getProjectTags } from '../services/projectTagService.js';
+import { getCurrentUserProfile } from '../services/userProfileService.js';
 import { createReceipt, createTransactionFromReceipt, deleteReceipt, getReceipt, getReceipts, linkReceiptToTransaction, updateReceiptReview } from '../services/receiptService.js';
 import { formatCurrency } from '../utils/format.js';
 
@@ -66,6 +67,7 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [projectTags, setProjectTags] = useState([]);
+  const [defaultAccountId, setDefaultAccountId] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [previewUrl, setPreviewUrl] = useState('');
   const [conversionNote, setConversionNote] = useState('');
@@ -82,16 +84,18 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
     if (!background) setLoading(true);
 
     try {
-      const [receiptData, accountData, categoryData, projectTagData] = await Promise.all([
+      const [receiptData, accountData, categoryData, projectTagData, profileData] = await Promise.all([
         getReceipts(),
         getAccounts(),
         getCategories(),
-        getProjectTags()
+        getProjectTags(),
+        getCurrentUserProfile()
       ]);
       setReceipts(receiptData);
       setAccounts(accountData);
       setCategories(categoryData);
       setProjectTags(projectTagData);
+      setDefaultAccountId(profileData?.default_account_id || '');
     } catch (err) {
       setError(err.message || 'Unable to load receipts.');
     } finally {
@@ -323,6 +327,7 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
       <ReceiptDetailPage
         accounts={accounts}
         categories={categories}
+        defaultAccountId={defaultAccountId}
         onBack={() => setSelectedReceipt(null)}
         onCreateTransaction={handleCreateTransaction}
         onSaveReview={handleSaveReview}

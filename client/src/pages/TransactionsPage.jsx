@@ -5,6 +5,7 @@ import TransactionList from '../components/TransactionList.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { getProjectTags } from '../services/projectTagService.js';
+import { getCurrentUserProfile } from '../services/userProfileService.js';
 import {
   createTransaction,
   deleteTransaction,
@@ -57,6 +58,7 @@ export default function TransactionsPage({ onNavigate }) {
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [projectTags, setProjectTags] = useState([]);
+  const [defaultAccountId, setDefaultAccountId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -74,18 +76,21 @@ export default function TransactionsPage({ onNavigate }) {
         transactionsData,
         accountsData,
         categoriesData,
-        projectTagsData
+        projectTagsData,
+        profileData
       ] = await Promise.all([
         getTransactions(),
         getAccounts(),
         getCategories(),
-        getProjectTags()
+        getProjectTags(),
+        getCurrentUserProfile()
       ]);
 
       setTransactions(transactionsData);
       setAccounts(accountsData);
       setCategories(categoriesData);
       setProjectTags(projectTagsData);
+      setDefaultAccountId(profileData?.default_account_id || '');
     } catch (err) {
       setError(err.message || 'Unable to load transactions.');
     } finally {
@@ -289,6 +294,7 @@ export default function TransactionsPage({ onNavigate }) {
         <AddTransactionModal
           accounts={accounts}
           categories={categories}
+          defaultAccountId={defaultAccountId}
           onClose={closeModal}
           onNavigateToImports={() => {
             closeModal();

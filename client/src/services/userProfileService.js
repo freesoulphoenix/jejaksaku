@@ -270,6 +270,24 @@ export async function getCurrentUserProfile() {
   return createdProfile;
 }
 
+export async function updateCurrentUserDefaultAccount(defaultAccountId) {
+  const client = requireSupabase();
+  const profile = await getCurrentUserProfile();
+  const { data, error } = await client
+    .from('user_profiles')
+    .update({ default_account_id: defaultAccountId || null })
+    .eq('id', profile.id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  cachedProfile = data;
+  return data;
+}
+
 export async function getCurrentUserProfileId() {
   const profile = await getCurrentUserProfile();
   return profile.id;

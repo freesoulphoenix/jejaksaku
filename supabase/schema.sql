@@ -5,6 +5,7 @@ create table if not exists public.user_profiles (
   auth_user_id uuid references auth.users(id) on delete set null,
   display_name text not null,
   email text not null unique,
+  default_account_id uuid,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -22,6 +23,10 @@ create table if not exists public.accounts (
   updated_at timestamptz default now(),
   constraint accounts_type_check check (type in ('Cash', 'Bank', 'E-Wallet', 'PayLater', 'Loan', 'Investment'))
 );
+
+alter table public.user_profiles
+add constraint user_profiles_default_account_id_fkey
+foreign key (default_account_id) references public.accounts(id) on delete set null;
 
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
@@ -95,6 +100,9 @@ create table if not exists public.upcoming_due (
 create unique index if not exists user_profiles_auth_user_id_idx
 on public.user_profiles (auth_user_id)
 where auth_user_id is not null;
+
+create index if not exists user_profiles_default_account_id_idx
+on public.user_profiles (default_account_id);
 
 create unique index if not exists accounts_user_profile_name_idx
 on public.accounts (user_profile_id, name);

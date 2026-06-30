@@ -12,12 +12,12 @@ function LinkIcon() {
   );
 }
 
-function getInitialForm(transaction) {
+function getInitialForm(transaction, defaultAccountId = '') {
   return {
     transaction_type: transaction?.transaction_type || 'expense',
     amount: transaction?.amount || 0,
-    account_id: transaction?.account_id || '',
-    from_account_id: transaction?.from_account_id || transaction?.account_id || '',
+    account_id: transaction?.account_id || (!transaction ? defaultAccountId : ''),
+    from_account_id: transaction?.from_account_id || transaction?.account_id || (!transaction ? defaultAccountId : ''),
     to_account_id: transaction?.to_account_id || '',
     category_id: transaction?.category_id || '',
     project_tag_id: transaction?.project_tag_id || '',
@@ -36,12 +36,13 @@ export default function AddTransactionModal({
   categories = [],
   projectTags = [],
   transaction = null,
+  defaultAccountId = '',
   onClose,
   onNavigateToImports,
   onSave,
   onUnlinkStatement
 }) {
-  const [form, setForm] = useState(() => getInitialForm(transaction));
+  const [form, setForm] = useState(() => getInitialForm(transaction, defaultAccountId));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [linkMessage, setLinkMessage] = useState('');
