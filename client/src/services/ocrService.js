@@ -181,6 +181,61 @@ function extractDate(lines) {
   return '';
 }
 
+async function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = url;
+  });
+}
+
+function preprocessImageForOcr(image) {
+  const maxLongEdge = 2200;
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.min(2, Math.max(1, maxLongEdge / Math.max(sourceWidth, sourceHeight)));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(image, 0, 0, width, height);
+
+  const imageData = context.getImageData(0, 0, width, height);
+  const { data } = imageData;
+
+  for (let index = 0; index < data.length; index += 4) {
+    const gray = (data[index] * 0.299) + (data[index + 1] * 0.587) + (data[index + 2] * 0.114);
+    const contrasted = Math.max(0, Math.min(255, ((gray - 128) * 1.45) + 142));
+    const lifted = contrasted < 170 ? Math.max(0, contrasted - 18) : Math.min(255, contrasted + 18);
+    data[index] = lifted;
+    data[index + 1] = lifted;
+    data[index + 2] = lifted;
+  }
+
+  context.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+async function getOcrImageSource(imageUrl) {
+  if (typeof document === 'undefined' || !imageUrl || /\.pdf($|\?)/i.test(imageUrl)) {
+    return imageUrl;
+  }
+
+  try {
+    const image = await loadImage(imageUrl);
+    return preprocessImageForOcr(image);
+  } catch (error) {
+    return imageUrl;
+  }
+}
+
 function extractMerchant(lines) {
   const ignoredWords = ['receipt', 'invoice', 'struk', 'nota', 'date', 'tanggal', 'total', 'cashier'];
 
