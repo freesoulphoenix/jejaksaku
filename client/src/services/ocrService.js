@@ -41,29 +41,91 @@ function parseCurrencyValue(value) {
   return Number(cleaned.replace(/[.,]/g, '')) || 0;
 }
 
+function normalizeOcrText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[0]/g, 'o')
+    .replace(/[1!|]/g, 'l')
+    .replace(/[4@]/g, 'a')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getCurrencyMatches(line) {
+  return line.match(/(?:rp\s*)?\d[\d.,]*/gi) || [];
+}
+
+function isLikelyReceiptAmount(amount) {
+  return amount >= 100;
+}
+
+function hasTotalKeyword(line) {
+  const normalizedLine = normalizeOcrText(line);
+
+  return /\b(grand\s+total|total|totai|totl|tota|jumlah|jurnlah)\b/.test(normalizedLine);
+}
+
+function hasPaymentKeyword(line) {
+  const normalizedLine = normalizeOcrText(line);
+
+  return /\b(cash|tunai|debit|credit|kartu|card|visa|mastercard|bca|mandiri|bni|bri|qris|gopay|ovo|dana|shopeepay)\b/.test(normalizedLine);
+}
+
+function isIgnoredTotalLine(line) {
+  const normalizedLine = normalizeOcrText(line);
+
+  return /\b(total\s*item|item|items|qty|quantity|jumlah\s*barang|discount|disc|diskon|saving|change|kembali|tax|pajak|ppn|pb1|stamp|st[a4]mp)\b/.test(normalizedLine);
+}
+
+function addAmountCandidates(candidates, line, index, score) {
+  getCurrencyMatches(line).forEach((match) => {
+    const amount = parseCurrencyValue(match);
+
+    if (isLikelyReceiptAmount(amount)) {
+      candidates.push({
+        amount,
+        index,
+        score
+      });
+    }
+  });
+}
+
 function extractTotal(lines) {
-  const totalKeywords = ['grand total', 'total', 'amount', 'jumlah', 'subtotal'];
-  const numberPattern = /(?:rp\s*)?[\d.,]+/gi;
   const candidates = [];
 
-  lines.forEach((line) => {
-    const lowerLine = line.toLowerCase();
-    const hasTotalKeyword = totalKeywords.some((keyword) => lowerLine.includes(keyword));
-    const matches = line.match(numberPattern) || [];
+  lines.forEach((line, index) => {
+    const hasTotal = hasTotalKeyword(line);
+    const hasPayment = hasPaymentKeyword(line);
+    const ignored = isIgnoredTotalLine(line);
+    const positionScore = index / Math.max(lines.length - 1, 1);
 
-    matches.forEach((match) => {
-      const amount = parseCurrencyValue(match);
+    if (hasTotal && !ignored) {
+      addAmountCandidates(candidates, line, index, 80 + positionScore);
 
-      if (amount > 0) {
-        candidates.push({
-          amount,
-          score: hasTotalKeyword ? 2 : 1
-        });
+      if (getCurrencyMatches(line).length === 0) {
+        addAmountCandidates(candidates, lines[index + 1] || '', index + 1, 72 + positionScore);
+        addAmountCandidates(candidates, lines[index + 2] || '', index + 2, 64 + positionScore);
       }
-    });
+
+      return;
+    }
+
+    if (hasPayment && !ignored) {
+      addAmountCandidates(candidates, line, index, 44 + positionScore);
+      return;
+    }
+
+    if (!ignored && index > lines.length * 0.45) {
+      addAmountCandidates(candidates, line, index, 18 + positionScore);
+    }
   });
 
-  candidates.sort((a, b) => b.score - a.score || b.amount - a.amount);
+  candidates.sort((a, b) => (
+    b.score - a.score
+    || b.index - a.index
+    || b.amount - a.amount
+  ));
   return candidates[0]?.amount || 0;
 }
 
