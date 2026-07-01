@@ -34,17 +34,17 @@ const importSuggestionRules = [
   {
     category: ['Subscription', 'Media Streaming'],
     keywords: ['netflix', 'disney+', 'disney plus', 'vidio', 'spotify', 'apple music', 'youtube premium'],
-    projectTag: 'Daily Life'
+    projectTag: 'Subscription'
   },
   {
     category: ['Subscription', 'Cloud Storage'],
     keywords: ['icloud', 'google storage', 'google one', 'google cloud storage', 'google drive', 'dropbox', 'onedrive', 'one drive'],
-    projectTag: 'Daily Life'
+    projectTag: 'Subscription'
   },
   {
     category: ['Subscription', 'Apps & Software'],
     keywords: ['chatgpt', 'openai', 'claude', 'anthropic', 'adobe', 'creative cloud', 'canva', 'figma', 'microsoft 365', 'office 365'],
-    projectTag: 'Business'
+    projectTag: 'Subscription'
   }
 ];
 

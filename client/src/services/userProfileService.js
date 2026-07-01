@@ -16,6 +16,7 @@ const defaultAccounts = [
 
 const defaultProjectTags = [
   'Daily Life',
+  'Subscription',
   'Residential',
   'Music',
   'Business',
