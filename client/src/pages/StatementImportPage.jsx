@@ -38,12 +38,12 @@ const importSuggestionRules = [
   },
   {
     category: ['Subscription', 'Cloud Storage'],
-    keywords: ['icloud', 'google storage', 'google one', 'dropbox', 'onedrive'],
+    keywords: ['icloud', 'google storage', 'google one', 'google cloud storage', 'google drive', 'dropbox', 'onedrive', 'one drive'],
     projectTag: 'Daily Life'
   },
   {
     category: ['Subscription', 'Apps & Software'],
-    keywords: ['adobe', 'creative cloud', 'canva', 'figma', 'microsoft 365', 'office 365'],
+    keywords: ['chatgpt', 'openai', 'claude', 'anthropic', 'adobe', 'creative cloud', 'canva', 'figma', 'microsoft 365', 'office 365'],
     projectTag: 'Business'
   }
 ];
