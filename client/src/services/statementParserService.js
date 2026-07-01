@@ -377,12 +377,71 @@ function detectColumns(headers) {
   };
 }
 
+function findObjectKey(row, candidates) {
+  const keys = Object.keys(row || {});
+  const normalizedCandidates = candidates.map(normalizeHeader);
+  const exactKey = keys.find((key) => normalizedCandidates.includes(normalizeHeader(key)));
+
+  if (exactKey) {
+    return exactKey;
+  }
+
+  return keys.find((key) => {
+    const normalizedKey = normalizeHeader(key);
+    return normalizedKey && normalizedCandidates.some((candidate) => (
+      normalizedKey.includes(candidate)
+      || candidate.includes(normalizedKey)
+    ));
+  }) || '';
+}
+
 function getDateOrder(header) {
   const normalizedHeader = normalizeHeader(header);
 
   return normalizedHeader === 'date' || normalizedHeader.includes('postingdate') || normalizedHeader.includes('valuedate')
     ? 'month-first'
     : 'local';
+}
+
+function objectRowToTransaction(row) {
+  const dateKey = findObjectKey(row, ['date', 'tanggal', 'transactiondate', 'tanggaltransaksi', 'tgl', 'tgltransaksi', 'postingdate', 'valuedate']);
+  const descriptionKey = findObjectKey(row, ['description', 'keterangan', 'uraian', 'deskripsi', 'merchant', 'remarks', 'transaksi', 'rinciantransaksi', 'berita', 'narrative', 'transactiondescription', 'details', 'detail', 'reference']);
+  const debitKey = findObjectKey(row, ['debet', 'debit', 'withdrawal', 'pengeluaran', 'mutasidebet', 'debitamount', 'amountdebit', 'withdrawalamount']);
+  const creditKey = findObjectKey(row, ['credit', 'kredit', 'deposit', 'pemasukan', 'mutasikredit', 'creditamount', 'amountcredit', 'depositamount']);
+  const amountKey = findObjectKey(row, ['amount', 'nominal', 'jumlah', 'mutasi', 'transactionamount', 'amountidr', 'nominaltransaksi', 'transactionnominal']);
+
+  if (!dateKey || !descriptionKey || (!amountKey && !debitKey && !creditKey)) {
+    return null;
+  }
+
+  const date = normalizeDateWithOrder(row[dateKey], getDateOrder(dateKey));
+  const rawDescription = row[descriptionKey] || 'Imported transaction';
+  const debit = debitKey ? parseCurrency(row[debitKey]) : 0;
+  const credit = creditKey ? parseCurrency(row[creditKey]) : 0;
+  const amount = credit > 0
+    ? credit
+    : debit > 0
+      ? -Math.abs(debit)
+      : parseCurrency(row[amountKey]);
+
+  if (!date || !amount) {
+    return null;
+  }
+
+  return {
+    transaction_date: date,
+    raw_description: rawDescription,
+    clean_description: cleanDescription(rawDescription) || rawDescription,
+    amount: Math.abs(amount),
+    transaction_type: getTransactionTypeFromText(rawDescription, amount),
+    import_status: getInitialImportStatus(rawDescription, amount, date)
+  };
+}
+
+function parseObjectRows(rows) {
+  return rows
+    .map(objectRowToTransaction)
+    .filter(Boolean);
 }
 
 function rowToTransaction(row, columns, headers = []) {
@@ -495,6 +554,27 @@ async function parseXlsxFile(file) {
   workbooks.forEach((workbook) => {
     workbook.SheetNames.forEach((sheetName) => {
       const worksheet = workbook.Sheets[sheetName];
+
+      [
+        { raw: true },
+        { raw: false }
+      ].forEach(({ raw }) => {
+        const objectRows = XLSX.utils.sheet_to_json(worksheet, {
+          blankrows: false,
+          defval: '',
+          raw
+        });
+
+        try {
+          const parsedObjectRows = parseObjectRows(objectRows);
+
+          if (parsedObjectRows.length > 0) {
+            parsedRowGroups.push(parsedObjectRows);
+          }
+        } catch (error) {
+          parseErrors.push(error);
+        }
+      });
 
       [
         { raw: true },
