@@ -360,15 +360,18 @@ export default function StatementImportPage() {
       }
 
       const savedRows = await saveImportedTransactions(statementImport.id, getRowsWithSourceAccount(rows, statementImport.bank_name));
+      const reviewRows = savedRows.length > 0
+        ? savedRows
+        : await getImportedTransactions(statementImport.id);
 
-      if (savedRows.length === 0) {
+      if (reviewRows.length === 0) {
         throw new Error('No new review rows were saved. Delete this upload and import the statement again.');
       }
 
       setActiveImport(statementImport);
       setReviewCollapsed(false);
-      setPreviewRows(savedRows);
-      selectRows(savedRows.filter((row) => row.import_status === 'pending'));
+      setPreviewRows(reviewRows);
+      selectRows(reviewRows.filter((row) => row.import_status === 'pending'));
       await loadImports();
     } catch (err) {
       setError(err.message || 'Unable to re-parse this statement.');
@@ -416,8 +419,11 @@ export default function StatementImportPage() {
       });
       const rowsWithSourceAccount = getRowsWithSourceAccount(rows);
       const savedRows = await saveImportedTransactions(statementImport.id, rowsWithSourceAccount);
+      const reviewRows = savedRows.length > 0
+        ? savedRows
+        : await getImportedTransactions(statementImport.id);
 
-      if (savedRows.length === 0) {
+      if (reviewRows.length === 0) {
         await deleteStatementImportFile(statementImport);
         throw new Error('No review rows were saved from this statement. Check that the file contains dated debit/credit rows.');
       }
@@ -426,8 +432,8 @@ export default function StatementImportPage() {
       event.target.reset();
       setActiveImport(statementImport);
       setReviewCollapsed(false);
-      setPreviewRows(savedRows);
-      selectRows(savedRows.filter((row) => row.import_status === 'pending'));
+      setPreviewRows(reviewRows);
+      selectRows(reviewRows.filter((row) => row.import_status === 'pending'));
       await loadImports();
     } catch (err) {
       setError(err.message || 'Unable to upload and parse statement.');

@@ -85,6 +85,74 @@ function splitDelimitedLine(line) {
   return splitCsvLine(line);
 }
 
+function popBankCsvAmount(cells) {
+  if (cells.length === 0) {
+    return '';
+  }
+
+  const lastCell = cells.pop();
+
+  if (String(lastCell || '').trim() === '-') {
+    return '-';
+  }
+
+  const parts = [String(lastCell || '').trim()];
+
+  while (cells.length > 0) {
+    const leadingPart = parts[0].replace(/[()]/g, '').split('.')[0];
+    const previousCell = String(cells[cells.length - 1] || '').trim();
+
+    if (!/^\d{1,3}$/.test(previousCell) || !/^\d{3}$/.test(leadingPart)) {
+      break;
+    }
+
+    parts.unshift(cells.pop().trim());
+  }
+
+  return parts.join(',');
+}
+
+function repairBankCsvRows(lines) {
+  if (lines.length < 2) {
+    return [];
+  }
+
+  const headers = splitCsvLine(lines[0]);
+  const columns = detectColumns(headers);
+
+  if (
+    columns.date < 0
+    || columns.description < 0
+    || columns.debit < 0
+    || columns.credit < 0
+    || headers.length !== 5
+  ) {
+    return [];
+  }
+
+  const repairedRows = [headers];
+
+  lines.slice(1).forEach((line) => {
+    const cells = splitCsvLine(line);
+
+    if (cells.length <= headers.length) {
+      repairedRows.push(cells);
+      return;
+    }
+
+    const mutableCells = [...cells];
+    const balance = popBankCsvAmount(mutableCells);
+    const credit = popBankCsvAmount(mutableCells);
+    const debit = popBankCsvAmount(mutableCells);
+    const date = mutableCells.shift() || '';
+    const description = mutableCells.join(', ').trim();
+
+    repairedRows.push([date, description, debit, credit, balance]);
+  });
+
+  return repairedRows;
+}
+
 function decodeHtmlEntities(value) {
   return String(value || '')
     .replace(/&nbsp;/gi, ' ')
@@ -497,17 +565,46 @@ function parseRowsFromMatrix(rows) {
     .map((row) => rowToTransaction(row, columns, headers))
     .filter(Boolean);
 
-  return parsedRows.length > 0 ? parsedRows : lineFallbackRows;
+  if (parsedRows.length === 0) {
+    return lineFallbackRows;
+  }
+
+  if (lineFallbackRows.length > parsedRows.length) {
+    return lineFallbackRows;
+  }
+
+  return parsedRows;
 }
 
 async function parseCsvFile(file) {
   const text = await file.text();
-  const rows = text
+  const lines = text
     .split(/\r?\n/)
-    .filter(Boolean)
-    .map(splitDelimitedLine);
+    .filter(Boolean);
+  const rows = lines.map(splitDelimitedLine);
+  const parsedRowGroups = [];
 
-  return parseRowsFromMatrix(rows);
+  try {
+    parsedRowGroups.push(parseRowsFromMatrix(repairBankCsvRows(lines)));
+  } catch (error) {
+    // Keep the standard parser as the fallback below.
+  }
+
+  try {
+    parsedRowGroups.push(parseRowsFromMatrix(rows));
+  } catch (error) {
+    if (parsedRowGroups.length === 0) {
+      throw error;
+    }
+  }
+
+  const bestRows = uniqueRows(chooseBestRows(parsedRowGroups));
+
+  if (bestRows.length === 0) {
+    throw new Error('Could not detect date, description, and amount columns in this statement.');
+  }
+
+  return bestRows;
 }
 
 async function parseXlsxFile(file) {
