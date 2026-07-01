@@ -9,6 +9,46 @@ const garbageKeywords = [
   'halaman'
 ];
 
+const monthNumbers = {
+  jan: 1,
+  januari: 1,
+  january: 1,
+  feb: 2,
+  februari: 2,
+  february: 2,
+  mar: 3,
+  maret: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  mei: 5,
+  may: 5,
+  jun: 6,
+  juni: 6,
+  june: 6,
+  jul: 7,
+  juli: 7,
+  july: 7,
+  agu: 8,
+  ags: 8,
+  agustus: 8,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  okt: 10,
+  oktober: 10,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  des: 12,
+  desember: 12,
+  dec: 12,
+  december: 12
+};
+
 function normalizeHeader(value) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -31,6 +71,59 @@ function splitCsvLine(line) {
 
   cells.push(current.trim());
   return cells.map((cell) => cell.replace(/^"|"$/g, ''));
+}
+
+function splitDelimitedLine(line) {
+  if (line.includes('\t')) {
+    return line.split('\t').map((cell) => cell.trim());
+  }
+
+  if (line.includes(';') && !line.includes(',')) {
+    return line.split(';').map((cell) => cell.trim());
+  }
+
+  return splitCsvLine(line);
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function parseHtmlTableRows(text) {
+  const tableRows = [];
+  const rowMatches = String(text || '').matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi);
+
+  for (const rowMatch of rowMatches) {
+    const cells = [];
+    const cellMatches = rowMatch[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi);
+
+    for (const cellMatch of cellMatches) {
+      cells.push(decodeHtmlEntities(cellMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()));
+    }
+
+    if (cells.some(Boolean)) {
+      tableRows.push(cells);
+    }
+  }
+
+  return tableRows;
+}
+
+function isTextSpreadsheetExport(text) {
+  const value = String(text || '').slice(0, 4000);
+  const nulCount = (value.match(/\u0000/g) || []).length;
+
+  return nulCount < 3 && (
+    /<table\b|<tr\b|<html\b/i.test(value)
+    || value.includes('\t')
+    || value.split(/\r?\n/).some((line) => line.split(';').length >= 3)
+  );
 }
 
 function parseCurrency(value) {
@@ -90,6 +183,39 @@ function getInitialImportStatus(description, amount, date) {
   }
 
   return 'pending';
+}
+
+function uniqueRows(rows) {
+  const seen = new Set();
+
+  return rows.filter((row) => {
+    const key = [
+      row.transaction_date,
+      row.clean_description || row.raw_description,
+      row.amount,
+      row.transaction_type
+    ].join('|');
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function getRowsScore(rows) {
+  return rows.reduce((sum, row) => sum + Math.abs(Number(row.amount || 0)), 0);
+}
+
+function chooseBestRows(rowGroups) {
+  return rowGroups
+    .filter((rows) => rows.length > 0)
+    .sort((first, second) => (
+      getRowsScore(second) - getRowsScore(first)
+      || second.length - first.length
+    ))[0] || [];
 }
 
 function buildValidIsoDate(year, month, day) {
@@ -164,7 +290,25 @@ function normalizeDate(value) {
     return buildValidIsoDate(new Date().getFullYear(), withoutYear[2], withoutYear[1]);
   }
 
+  const monthPattern = Object.keys(monthNumbers)
+    .sort((first, second) => second.length - first.length)
+    .join('|');
+  const dayMonthName = raw.match(new RegExp(`\\b(\\d{1,2})\\s+(${monthPattern})\\s+(\\d{2,4})\\b`, 'i'));
+  const monthNameDay = raw.match(new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2}),?\\s+(\\d{2,4})\\b`, 'i'));
+
+  if (dayMonthName || monthNameDay) {
+    const match = dayMonthName || monthNameDay;
+    const day = dayMonthName ? match[1] : match[2];
+    const month = monthNumbers[(dayMonthName ? match[2] : match[1]).toLowerCase()];
+    const year = normalizeYear(match[3]);
+    return buildValidIsoDate(year, month, day);
+  }
+
   return '';
+}
+
+function normalizeYear(value) {
+  return String(value).length === 2 ? `20${value}` : value;
 }
 
 function findIndex(headers, candidates) {
@@ -267,7 +411,7 @@ async function parseCsvFile(file) {
   const rows = text
     .split(/\r?\n/)
     .filter(Boolean)
-    .map(splitCsvLine);
+    .map(splitDelimitedLine);
 
   return parseRowsFromMatrix(rows);
 }
@@ -275,27 +419,91 @@ async function parseCsvFile(file) {
 async function parseXlsxFile(file) {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { cellDates: true, type: 'array' });
-  const parsedRows = [];
+  const text = await file.text();
+  const parsedRowGroups = [];
   const parseErrors = [];
+  const workbooks = [];
 
-  workbook.SheetNames.forEach((sheetName) => {
-    const worksheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(worksheet, {
-      blankrows: false,
-      defval: '',
-      header: 1
-    });
-
+  if (isTextSpreadsheetExport(text)) {
     try {
-      parsedRows.push(...parseRowsFromMatrix(rows));
+      const htmlRows = parseHtmlTableRows(text);
+      const textRows = htmlRows.length > 0
+        ? htmlRows
+        : text.split(/\r?\n/).filter(Boolean).map(splitDelimitedLine);
+      const parsedTextRows = parseRowsFromMatrix(textRows);
+
+      if (parsedTextRows.length > 0) {
+        return parsedTextRows;
+      }
+    } catch (error) {
+      parseErrors.push(error);
+    }
+  }
+
+  [
+    () => XLSX.read(buffer, { cellDates: true, type: 'array' }),
+    () => XLSX.read(buffer, { cellDates: false, type: 'array' }),
+    () => XLSX.read(text, { cellDates: true, type: 'string' })
+  ].forEach((readWorkbook) => {
+    try {
+      const workbook = readWorkbook();
+
+      if (workbook?.SheetNames?.length) {
+        workbooks.push(workbook);
+      }
     } catch (error) {
       parseErrors.push(error);
     }
   });
 
-  if (parsedRows.length > 0) {
-    return parsedRows;
+  workbooks.forEach((workbook) => {
+    workbook.SheetNames.forEach((sheetName) => {
+      const worksheet = workbook.Sheets[sheetName];
+
+      [
+        { raw: true },
+        { raw: false }
+      ].forEach(({ raw }) => {
+        const rows = XLSX.utils.sheet_to_json(worksheet, {
+          blankrows: false,
+          defval: '',
+          header: 1,
+          raw
+        });
+
+        try {
+          parsedRowGroups.push(parseRowsFromMatrix(rows));
+        } catch (error) {
+          parseErrors.push(error);
+        }
+      });
+    });
+  });
+
+  try {
+    const htmlRows = parseHtmlTableRows(text);
+
+    if (htmlRows.length > 0) {
+      parsedRowGroups.push(parseRowsFromMatrix(htmlRows));
+    }
+  } catch (error) {
+    parseErrors.push(error);
+  }
+
+  try {
+    const textRows = text
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map(splitDelimitedLine);
+    parsedRowGroups.push(parseRowsFromMatrix(textRows));
+  } catch (error) {
+    parseErrors.push(error);
+  }
+
+  const bestRows = uniqueRows(chooseBestRows(parsedRowGroups));
+
+  if (bestRows.length > 0) {
+    return bestRows;
   }
 
   throw parseErrors[0] || new Error('Could not extract transaction rows from this spreadsheet.');
@@ -303,7 +511,10 @@ async function parseXlsxFile(file) {
 
 function parseLineStatement(lines) {
   return lines.map((line) => {
-    const dateMatch = line.match(/\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./-]\d{1,2})\b/);
+    const monthPattern = Object.keys(monthNumbers)
+      .sort((first, second) => second.length - first.length)
+      .join('|');
+    const dateMatch = line.match(new RegExp(`\\b(\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}[./-]\\d{1,2}|\\d{1,2}\\s+(?:${monthPattern})\\s+\\d{2,4}|(?:${monthPattern})\\s+\\d{1,2},?\\s+\\d{2,4})\\b`, 'i'));
 
     if (!dateMatch) {
       return null;
