@@ -112,7 +112,10 @@ export default function StatementImportPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
+  const allCategoryOptions = useMemo(() => getCategoryOptions(categories, null), [categories]);
+  const getRowCategoryOptions = (row) => (
+    getCategoryOptions(categories, row.transaction_type === 'transfer' ? null : row.transaction_type)
+  );
   const sourceAccounts = useMemo(() => (
     accounts.filter((account) => ['Bank', 'E-Wallet'].includes(account.type))
   ), [accounts]);
@@ -894,7 +897,7 @@ export default function StatementImportPage() {
             </select>
             <select onChange={(event) => applyBulkField('category_id', event.target.value)} value="">
               <option value="">Apply category to selected</option>
-              {categoryOptions.map((category) => (
+              {allCategoryOptions.map((category) => (
                 <option key={category.id} value={category.id}>{category.displayName}</option>
               ))}
             </select>
@@ -1037,7 +1040,7 @@ export default function StatementImportPage() {
                             value={row.category_id || ''}
                           >
                             <option value="">Select category</option>
-                            {categoryOptions.map((category) => (
+                            {getRowCategoryOptions(row).map((category) => (
                               <option key={category.id} value={category.id}>{category.displayName}</option>
                             ))}
                           </select>
