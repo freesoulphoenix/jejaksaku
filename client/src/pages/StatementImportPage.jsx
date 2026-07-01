@@ -984,18 +984,6 @@ export default function StatementImportPage() {
                           <option value="transfer">Transfer</option>
                         </select>
                       </label>
-                      <label className="field-group">
-                        Source Account
-                        <select
-                          onChange={(event) => updateRowLocal(row.id, 'account_id', event.target.value)}
-                          value={row.account_id || ''}
-                        >
-                          <option value="">Select account</option>
-                          {accounts.map((account) => (
-                            <option key={account.id} value={account.id}>{account.name}</option>
-                          ))}
-                        </select>
-                      </label>
                       {row.transaction_type === 'transfer' ? (
                         <>
                           <label className="field-group">
@@ -1033,18 +1021,32 @@ export default function StatementImportPage() {
                           </label>
                         </>
                       ) : (
-                        <label className="field-group">
-                          Category
-                          <select
-                            onChange={(event) => updateRowLocal(row.id, 'category_id', event.target.value)}
-                            value={row.category_id || ''}
-                          >
-                            <option value="">Select category</option>
-                            {getRowCategoryOptions(row).map((category) => (
-                              <option key={category.id} value={category.id}>{category.displayName}</option>
-                            ))}
-                          </select>
-                        </label>
+                        <>
+                          <label className="field-group">
+                            Source Account
+                            <select
+                              onChange={(event) => updateRowLocal(row.id, 'account_id', event.target.value)}
+                              value={row.account_id || ''}
+                            >
+                              <option value="">Select account</option>
+                              {accounts.map((account) => (
+                                <option key={account.id} value={account.id}>{account.name}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="field-group">
+                            Category
+                            <select
+                              onChange={(event) => updateRowLocal(row.id, 'category_id', event.target.value)}
+                              value={row.category_id || ''}
+                            >
+                              <option value="">Select category</option>
+                              {getRowCategoryOptions(row).map((category) => (
+                                <option key={category.id} value={category.id}>{category.displayName}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </>
                       )}
                       <label className="field-group">
                         Project Tag
