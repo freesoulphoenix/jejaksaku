@@ -119,6 +119,10 @@ function isTextSpreadsheetExport(text) {
   const value = String(text || '').slice(0, 4000);
   const nulCount = (value.match(/\u0000/g) || []).length;
 
+  if (/^\s*PK[\u0003\u0005\u0007]/.test(value) || value.includes('[Content_Types].xml')) {
+    return false;
+  }
+
   return nulCount < 3 && (
     /<table\b|<tr\b|<html\b/i.test(value)
     || value.includes('\t')
@@ -151,6 +155,14 @@ function parseCurrency(value) {
 }
 
 function getTransactionTypeFromText(text, amount) {
+  if (Number(amount || 0) < 0) {
+    return 'expense';
+  }
+
+  if (Number(amount || 0) > 0) {
+    return 'income';
+  }
+
   const normalized = String(text || '').toLowerCase();
 
   if (/\bcr\b|credit|kredit|pemasukan|masuk/.test(normalized)) {
@@ -259,6 +271,10 @@ function normalizeExcelSerialDate(value) {
 }
 
 function normalizeDate(value) {
+  return normalizeDateWithOrder(value);
+}
+
+function normalizeDateWithOrder(value, dateOrder = 'local') {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return buildValidIsoDate(value.getFullYear(), value.getMonth() + 1, value.getDate());
   }
@@ -281,7 +297,18 @@ function normalizeDate(value) {
 
   if (local) {
     const year = local[3].length === 2 ? `20${local[3]}` : local[3];
-    return buildValidIsoDate(year, local[2], local[1]);
+    const first = Number(local[1]);
+    const second = Number(local[2]);
+
+    if (dateOrder === 'month-first' && first <= 12) {
+      return buildValidIsoDate(year, first, second);
+    }
+
+    if (second > 12 && first <= 12) {
+      return buildValidIsoDate(year, first, second);
+    }
+
+    return buildValidIsoDate(year, second, first);
   }
 
   const withoutYear = raw.match(/\b(\d{1,2})[./-](\d{1,2})\b/);
@@ -350,8 +377,16 @@ function detectColumns(headers) {
   };
 }
 
-function rowToTransaction(row, columns) {
-  const date = normalizeDate(row[columns.date]);
+function getDateOrder(header) {
+  const normalizedHeader = normalizeHeader(header);
+
+  return normalizedHeader === 'date' || normalizedHeader.includes('postingdate') || normalizedHeader.includes('valuedate')
+    ? 'month-first'
+    : 'local';
+}
+
+function rowToTransaction(row, columns, headers = []) {
+  const date = normalizeDateWithOrder(row[columns.date], getDateOrder(headers[columns.date]));
   const rawDescription = row[columns.description] || 'Imported transaction';
   let amount = 0;
 
@@ -400,7 +435,7 @@ function parseRowsFromMatrix(rows) {
 
   const parsedRows = normalizedRows
     .slice(headerIndex + 1)
-    .map((row) => rowToTransaction(row, columns))
+    .map((row) => rowToTransaction(row, columns, headers))
     .filter(Boolean);
 
   return parsedRows.length > 0 ? parsedRows : lineFallbackRows;
@@ -423,8 +458,9 @@ async function parseXlsxFile(file) {
   const parsedRowGroups = [];
   const parseErrors = [];
   const workbooks = [];
+  const textSpreadsheetExport = isTextSpreadsheetExport(text);
 
-  if (isTextSpreadsheetExport(text)) {
+  if (textSpreadsheetExport) {
     try {
       const htmlRows = parseHtmlTableRows(text);
       const textRows = htmlRows.length > 0
@@ -480,24 +516,26 @@ async function parseXlsxFile(file) {
     });
   });
 
-  try {
-    const htmlRows = parseHtmlTableRows(text);
+  if (textSpreadsheetExport) {
+    try {
+      const htmlRows = parseHtmlTableRows(text);
 
-    if (htmlRows.length > 0) {
-      parsedRowGroups.push(parseRowsFromMatrix(htmlRows));
+      if (htmlRows.length > 0) {
+        parsedRowGroups.push(parseRowsFromMatrix(htmlRows));
+      }
+    } catch (error) {
+      parseErrors.push(error);
     }
-  } catch (error) {
-    parseErrors.push(error);
-  }
 
-  try {
-    const textRows = text
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map(splitDelimitedLine);
-    parsedRowGroups.push(parseRowsFromMatrix(textRows));
-  } catch (error) {
-    parseErrors.push(error);
+    try {
+      const textRows = text
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map(splitDelimitedLine);
+      parsedRowGroups.push(parseRowsFromMatrix(textRows));
+    } catch (error) {
+      parseErrors.push(error);
+    }
   }
 
   const bestRows = uniqueRows(chooseBestRows(parsedRowGroups));
