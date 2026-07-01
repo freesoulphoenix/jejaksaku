@@ -27,7 +27,7 @@ import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 const today = getLocalIsoDate();
 
-const allowedExtensions = ['pdf', 'csv', 'xlsx'];
+const allowedExtensions = ['pdf', 'csv', 'xls', 'xlsx'];
 const activeStatuses = new Set(['pending', 'needs_review']);
 const processedStatuses = new Set(['imported', 'ignored', 'duplicate']);
 
@@ -351,10 +351,15 @@ export default function StatementImportPage() {
         }
       }
 
+      const rows = await parseStatementFile(file, sourceName);
+
+      if (rows.length === 0) {
+        throw new Error('No transaction rows were found in this statement. Check that the file contains dated debit/credit rows.');
+      }
+
       const statementImport = await createStatementImport(file, sourceName, {
         fileHash: duplicate.fileHash
       });
-      const rows = await parseStatementFile(file, sourceName);
       const sourceAccount = sourceAccounts.find((account) => account.name === sourceName);
       const fallbackAccount = sourceAccount || defaultAccount;
       const rowsWithSourceAccount = rows.map((row) => ({
@@ -683,9 +688,9 @@ export default function StatementImportPage() {
 
           <label className="upload-dropzone span-2">
             <strong>{file ? file.name : 'Choose statement file'}</strong>
-            <span>PDF, CSV, or XLSX</span>
+            <span>PDF, CSV, XLS, or XLSX</span>
             <input
-              accept=".pdf,.csv,.xlsx,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".pdf,.csv,.xls,.xlsx,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={handleFileChange}
               type="file"
             />

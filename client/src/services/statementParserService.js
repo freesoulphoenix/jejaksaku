@@ -189,9 +189,9 @@ function findIndex(headers, candidates) {
 }
 
 function detectColumns(headers) {
-  const debit = findIndex(headers, ['debit', 'debet', 'withdrawal', 'pengeluaran', 'mutasidebet', 'debitamount', 'amountdebit']);
-  const credit = findIndex(headers, ['credit', 'kredit', 'deposit', 'pemasukan', 'mutasikredit', 'creditamount', 'amountcredit']);
-  let amount = findIndex(headers, ['amount', 'nominal', 'jumlah', 'mutasi', 'transactionamount', 'amountidr', 'nominaltransaksi']);
+  const debit = findIndex(headers, ['debit', 'debet', 'withdrawal', 'pengeluaran', 'mutasidebet', 'debitamount', 'amountdebit', 'withdrawalamount']);
+  const credit = findIndex(headers, ['credit', 'kredit', 'deposit', 'pemasukan', 'mutasikredit', 'creditamount', 'amountcredit', 'depositamount']);
+  let amount = findIndex(headers, ['amount', 'nominal', 'jumlah', 'mutasi', 'transactionamount', 'amountidr', 'nominaltransaksi', 'transactionnominal']);
 
   if (amount === debit || amount === credit) {
     amount = -1;
@@ -199,7 +199,7 @@ function detectColumns(headers) {
 
   return {
     date: findIndex(headers, ['date', 'tanggal', 'transactiondate', 'tanggaltransaksi', 'tgl', 'tgltransaksi', 'waktu', 'postingdate', 'valuedate']),
-    description: findIndex(headers, ['description', 'keterangan', 'uraian', 'deskripsi', 'merchant', 'remarks', 'transaksi', 'rinciantransaksi', 'berita', 'narrative']),
+    description: findIndex(headers, ['description', 'keterangan', 'uraian', 'deskripsi', 'merchant', 'remarks', 'transaksi', 'rinciantransaksi', 'berita', 'narrative', 'transactiondescription', 'details', 'detail', 'reference']),
     amount,
     debit,
     credit
@@ -237,16 +237,15 @@ function parseRowsFromMatrix(rows) {
   const normalizedRows = rows.map((row) => row.map((cell) => (
     cell instanceof Date ? normalizeDate(cell) : String(cell ?? '').trim()
   )));
-  const headerIndex = rows.findIndex((row) => {
+  const lineFallbackRows = parseLineStatement(normalizedRows.map((row) => row.filter(Boolean).join(' ')));
+  const headerIndex = normalizedRows.findIndex((row) => {
     const columns = detectColumns(row);
     return columns.date >= 0 && columns.description >= 0 && (columns.amount >= 0 || columns.debit >= 0 || columns.credit >= 0);
   });
 
   if (headerIndex === -1) {
-    const fallbackRows = parseLineStatement(normalizedRows.map((row) => row.filter(Boolean).join(' ')));
-
-    if (fallbackRows.length > 0) {
-      return fallbackRows;
+    if (lineFallbackRows.length > 0) {
+      return lineFallbackRows;
     }
 
     throw new Error('Could not detect date, description, and amount columns in this statement.');
@@ -255,10 +254,12 @@ function parseRowsFromMatrix(rows) {
   const headers = normalizedRows[headerIndex];
   const columns = detectColumns(headers);
 
-  return normalizedRows
+  const parsedRows = normalizedRows
     .slice(headerIndex + 1)
     .map((row) => rowToTransaction(row, columns))
     .filter(Boolean);
+
+  return parsedRows.length > 0 ? parsedRows : lineFallbackRows;
 }
 
 async function parseCsvFile(file) {
@@ -274,15 +275,30 @@ async function parseCsvFile(file) {
 async function parseXlsxFile(file) {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array' });
-  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(worksheet, {
-    blankrows: false,
-    defval: '',
-    header: 1
+  const workbook = XLSX.read(buffer, { cellDates: true, type: 'array' });
+  const parsedRows = [];
+  const parseErrors = [];
+
+  workbook.SheetNames.forEach((sheetName) => {
+    const worksheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(worksheet, {
+      blankrows: false,
+      defval: '',
+      header: 1
+    });
+
+    try {
+      parsedRows.push(...parseRowsFromMatrix(rows));
+    } catch (error) {
+      parseErrors.push(error);
+    }
   });
 
-  return parseRowsFromMatrix(rows);
+  if (parsedRows.length > 0) {
+    return parsedRows;
+  }
+
+  throw parseErrors[0] || new Error('Could not extract transaction rows from this spreadsheet.');
 }
 
 function parseLineStatement(lines) {
@@ -427,7 +443,7 @@ export async function parseStatementFile(file, bankName) {
     return parseCsvFile(file);
   }
 
-  if (fileType === 'xlsx') {
+  if (fileType === 'xlsx' || fileType === 'xls') {
     return parseXlsxFile(file);
   }
 
