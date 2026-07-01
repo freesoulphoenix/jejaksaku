@@ -10,7 +10,7 @@ const garbageKeywords = [
 ];
 
 function normalizeHeader(value) {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function splitCsvLine(line) {
@@ -34,14 +34,15 @@ function splitCsvLine(line) {
 }
 
 function parseCurrency(value) {
-  const cleaned = String(value || '').replace(/[^\d.,-]/g, '');
+  const raw = String(value || '');
+  const cleaned = raw.replace(/[^\d.,\s()-]/g, '');
 
   if (!cleaned) {
     return 0;
   }
 
-  const negative = cleaned.includes('-');
-  const unsigned = cleaned.replace(/-/g, '');
+  const negative = cleaned.includes('-') || /\([^)]*\)/.test(cleaned);
+  const unsigned = cleaned.replace(/[-()\s]/g, '');
   const lastComma = unsigned.lastIndexOf(',');
   const lastDot = unsigned.lastIndexOf('.');
 
@@ -74,7 +75,7 @@ function cleanDescription(value) {
   return String(value || '')
     .replace(/\b(cr|db)\b/gi, '')
     .replace(/\brp\b/gi, '')
-    .replace(/\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?/g, '')
+    .replace(/\d{1,3}(?:[.,\s]\d{3})+(?:[.,]\d{2})?/g, '')
     .replace(/\d+(?:[.,]\d{2})/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -118,22 +119,46 @@ function buildValidIsoDate(year, month, day) {
   return `${String(numericYear).padStart(4, '0')}-${String(numericMonth).padStart(2, '0')}-${String(numericDay).padStart(2, '0')}`;
 }
 
+function normalizeExcelSerialDate(value) {
+  const serial = Number(value);
+
+  if (!Number.isFinite(serial) || serial < 25000 || serial > 70000) {
+    return '';
+  }
+
+  const date = new Date(Date.UTC(1899, 11, 30));
+  date.setUTCDate(date.getUTCDate() + Math.floor(serial));
+
+  return buildValidIsoDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+}
+
 function normalizeDate(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return buildValidIsoDate(value.getFullYear(), value.getMonth() + 1, value.getDate());
+  }
+
   const raw = String(value || '').trim();
+
+  const serialDate = normalizeExcelSerialDate(raw);
+
+  if (serialDate) {
+    return serialDate;
+  }
+
   const iso = raw.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
 
   if (iso) {
     return buildValidIsoDate(iso[1], iso[2], iso[3]);
   }
 
-  const local = raw.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b/);
+  const local = raw.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b/);
 
   if (local) {
     const year = local[3].length === 2 ? `20${local[3]}` : local[3];
     return buildValidIsoDate(year, local[2], local[1]);
   }
 
-  const withoutYear = raw.match(/\b(\d{1,2})[/-](\d{1,2})\b/);
+  const withoutYear = raw.match(/\b(\d{1,2})[./-](\d{1,2})\b/);
 
   if (withoutYear) {
     return buildValidIsoDate(new Date().getFullYear(), withoutYear[2], withoutYear[1]);
@@ -143,16 +168,41 @@ function normalizeDate(value) {
 }
 
 function findIndex(headers, candidates) {
-  return headers.findIndex((header) => candidates.includes(normalizeHeader(header)));
+  const normalizedCandidates = candidates.map(normalizeHeader);
+  const exactIndex = headers.findIndex((header) => normalizedCandidates.includes(normalizeHeader(header)));
+
+  if (exactIndex >= 0) {
+    return exactIndex;
+  }
+
+  return headers.findIndex((header) => {
+    const normalizedHeader = normalizeHeader(header);
+    if (!normalizedHeader) {
+      return false;
+    }
+
+    return normalizedCandidates.some((candidate) => (
+      normalizedHeader.includes(candidate)
+      || candidate.includes(normalizedHeader)
+    ));
+  });
 }
 
 function detectColumns(headers) {
+  const debit = findIndex(headers, ['debit', 'debet', 'withdrawal', 'pengeluaran', 'mutasidebet', 'debitamount', 'amountdebit']);
+  const credit = findIndex(headers, ['credit', 'kredit', 'deposit', 'pemasukan', 'mutasikredit', 'creditamount', 'amountcredit']);
+  let amount = findIndex(headers, ['amount', 'nominal', 'jumlah', 'mutasi', 'transactionamount', 'amountidr', 'nominaltransaksi']);
+
+  if (amount === debit || amount === credit) {
+    amount = -1;
+  }
+
   return {
-    date: findIndex(headers, ['date', 'tanggal', 'transactiondate', 'tgl', 'waktu']),
-    description: findIndex(headers, ['description', 'keterangan', 'uraian', 'deskripsi', 'merchant', 'remarks', 'transaksi']),
-    amount: findIndex(headers, ['amount', 'nominal', 'jumlah', 'mutasi', 'transactionamount']),
-    debit: findIndex(headers, ['debit', 'withdrawal', 'pengeluaran']),
-    credit: findIndex(headers, ['credit', 'deposit', 'pemasukan'])
+    date: findIndex(headers, ['date', 'tanggal', 'transactiondate', 'tanggaltransaksi', 'tgl', 'tgltransaksi', 'waktu', 'postingdate', 'valuedate']),
+    description: findIndex(headers, ['description', 'keterangan', 'uraian', 'deskripsi', 'merchant', 'remarks', 'transaksi', 'rinciantransaksi', 'berita', 'narrative']),
+    amount,
+    debit,
+    credit
   };
 }
 
@@ -184,19 +234,28 @@ function rowToTransaction(row, columns) {
 }
 
 function parseRowsFromMatrix(rows) {
+  const normalizedRows = rows.map((row) => row.map((cell) => (
+    cell instanceof Date ? normalizeDate(cell) : String(cell ?? '').trim()
+  )));
   const headerIndex = rows.findIndex((row) => {
     const columns = detectColumns(row);
     return columns.date >= 0 && columns.description >= 0 && (columns.amount >= 0 || columns.debit >= 0 || columns.credit >= 0);
   });
 
   if (headerIndex === -1) {
+    const fallbackRows = parseLineStatement(normalizedRows.map((row) => row.filter(Boolean).join(' ')));
+
+    if (fallbackRows.length > 0) {
+      return fallbackRows;
+    }
+
     throw new Error('Could not detect date, description, and amount columns in this statement.');
   }
 
-  const headers = rows[headerIndex];
+  const headers = normalizedRows[headerIndex];
   const columns = detectColumns(headers);
 
-  return rows
+  return normalizedRows
     .slice(headerIndex + 1)
     .map((row) => rowToTransaction(row, columns))
     .filter(Boolean);
@@ -223,22 +282,25 @@ async function parseXlsxFile(file) {
     header: 1
   });
 
-  return parseRowsFromMatrix(rows.map((row) => row.map(String)));
+  return parseRowsFromMatrix(rows);
 }
 
 function parseLineStatement(lines) {
   return lines.map((line) => {
-    const dateMatch = line.match(/\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2})\b/);
+    const dateMatch = line.match(/\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./-]\d{1,2})\b/);
 
     if (!dateMatch) {
       return null;
     }
 
     const lineWithoutDate = line.replace(dateMatch[0], ' ');
-    const amountMatches = lineWithoutDate.match(/-?(?:rp\s*)?(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?|\d+(?:[.,]\d{2})?)\b/gi) || [];
-    const amountMatch = amountMatches
-      .filter((match) => Math.abs(parseCurrency(match)) > 0)
-      .pop();
+    const amountMatches = lineWithoutDate.match(/-?\(?(?:rp\s*)?(?:\d{1,3}(?:[.,\s]\d{3})+(?:[.,]\d{2})?|\d+(?:[.,]\d{2})?)\)?\b/gi) || [];
+    const usableAmountMatches = amountMatches.filter((match) => Math.abs(parseCurrency(match)) > 0);
+    const explicitDirectionAmount = usableAmountMatches.find((match) => {
+      const escapedMatch = match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`${escapedMatch}\\s*(?:cr|credit|kredit|db|debit|debet)\\b|\\b(?:cr|credit|kredit|db|debit|debet)\\s*${escapedMatch}`, 'i').test(lineWithoutDate);
+    });
+    const amountMatch = explicitDirectionAmount || usableAmountMatches[0];
 
     if (!amountMatch) {
       return null;
@@ -326,12 +388,12 @@ async function ocrPdfLines(pdf) {
 }
 
 async function parsePdfFile(file) {
-  const pdfjsLib = await import('pdfjs-dist');
-  const pdfWorker = await import('pdfjs-dist/build/pdf.worker.mjs?url');
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfWorker = await import('pdfjs-dist/legacy/build/pdf.worker.mjs?url');
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker.default;
 
   const buffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
   const lines = [];
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
