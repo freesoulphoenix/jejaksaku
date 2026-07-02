@@ -30,6 +30,15 @@ const today = getLocalIsoDate();
 const allowedExtensions = ['pdf', 'csv', 'xls', 'xlsx'];
 const activeStatuses = new Set(['pending', 'needs_review']);
 const processedStatuses = new Set(['imported', 'ignored', 'duplicate']);
+const reviewFilters = [
+  { id: 'all', label: 'All' },
+  { id: 'income', label: 'Income' },
+  { id: 'expense', label: 'Expense' },
+  { id: 'transfer-in', label: 'Transfer In' },
+  { id: 'transfer-out', label: 'Transfer Out' },
+  { id: 'needs-review', label: 'Need Review' },
+  { id: 'linked', label: 'Linked' }
+];
 const importSuggestionRules = [
   {
     category: ['Subscription', 'Media Streaming'],
@@ -92,6 +101,10 @@ function normalizeSuggestionText(value) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9+]+/g, ' ').trim();
 }
 
+function normalizeSearchText(value) {
+  return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 export default function StatementImportPage() {
   const [imports, setImports] = useState([]);
   const [previewRows, setPreviewRows] = useState([]);
@@ -104,6 +117,8 @@ export default function StatementImportPage() {
   const [sourceName, setSourceName] = useState('');
   const [defaultAccountId, setDefaultAccountId] = useState('');
   const [importSort, setImportSort] = useState('latest');
+  const [reviewFilter, setReviewFilter] = useState('all');
+  const [reviewSearch, setReviewSearch] = useState('');
   const [editingIds, setEditingIds] = useState(new Set());
   const [rawVisibleIds, setRawVisibleIds] = useState(new Set());
   const [pendingMatch, setPendingMatch] = useState(null);
@@ -137,6 +152,77 @@ export default function StatementImportPage() {
   const activeRows = useMemo(() => (
     previewRows.filter((row) => activeStatuses.has(row.import_status))
   ), [previewRows]);
+
+  const accountNameById = useMemo(() => (
+    new Map(accounts.map((account) => [account.id, account.name]))
+  ), [accounts]);
+  const categoryNameById = useMemo(() => (
+    new Map(allCategoryOptions.map((category) => [category.id, category.displayName]))
+  ), [allCategoryOptions]);
+  const projectTagNameById = useMemo(() => (
+    new Map(projectTags.map((tag) => [tag.id, tag.name]))
+  ), [projectTags]);
+
+  const filteredRows = useMemo(() => {
+    const baseRows = reviewFilter === 'linked'
+      ? previewRows.filter((row) => row.import_status === 'duplicate')
+      : activeRows.filter((row) => {
+        if (reviewFilter === 'income') {
+          return row.transaction_type === 'income';
+        }
+
+        if (reviewFilter === 'expense') {
+          return row.transaction_type === 'expense';
+        }
+
+        if (reviewFilter === 'transfer-in') {
+          return row.transaction_type === 'transfer' && row.money_direction === 'in';
+        }
+
+        if (reviewFilter === 'transfer-out') {
+          return row.transaction_type === 'transfer' && row.money_direction === 'out';
+        }
+
+        if (reviewFilter === 'needs-review') {
+          return row.import_status === 'needs_review';
+        }
+
+        return true;
+      });
+    const query = normalizeSearchText(reviewSearch);
+
+    if (!query) {
+      return baseRows;
+    }
+
+    return baseRows.filter((row) => normalizeSearchText([
+      row.clean_description,
+      row.description,
+      row.raw_description,
+      row.transaction_date,
+      row.transaction_type,
+      row.money_direction,
+      row.import_status,
+      row.amount,
+      accountNameById.get(row.account_id),
+      accountNameById.get(row.from_account_id),
+      accountNameById.get(row.to_account_id),
+      categoryNameById.get(row.category_id),
+      projectTagNameById.get(row.project_tag_id)
+    ].filter(Boolean).join(' ')).includes(query));
+  }, [
+    accountNameById,
+    activeRows,
+    categoryNameById,
+    previewRows,
+    projectTagNameById,
+    reviewFilter,
+    reviewSearch
+  ]);
+
+  const filteredActiveRows = useMemo(() => (
+    filteredRows.filter((row) => activeStatuses.has(row.import_status))
+  ), [filteredRows]);
 
   const selectedRows = useMemo(() => (
     activeRows.filter((row) => selectedIds.has(row.id))
@@ -881,7 +967,7 @@ export default function StatementImportPage() {
           </section>
 
           <div className="button-row">
-            <button className="secondary-button" onClick={() => selectRows(activeRows)}>Select All</button>
+            <button className="secondary-button" onClick={() => selectRows(filteredActiveRows)}>Select All</button>
             <button className="secondary-button" onClick={() => setSelectedIds(new Set())}>Unselect All</button>
             <button className="secondary-button danger-button" disabled={saving || selectedRows.length === 0} onClick={ignoreSelectedRows}>
               Ignore Selected
@@ -909,15 +995,53 @@ export default function StatementImportPage() {
             </select>
           </div>
 
+          <div className="statement-review-filters">
+            <div className="statement-filter-tabs" role="tablist" aria-label="Filter imported rows">
+              {reviewFilters.map((filter) => (
+                <button
+                  aria-selected={reviewFilter === filter.id}
+                  className={reviewFilter === filter.id ? 'active' : ''}
+                  key={filter.id}
+                  onClick={() => setReviewFilter(filter.id)}
+                  role="tab"
+                  type="button"
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+            <label className="statement-search-field">
+              <span className="sr-only">Search imported rows</span>
+              <input
+                onChange={(event) => setReviewSearch(event.target.value)}
+                placeholder="Search rows"
+                type="search"
+                value={reviewSearch}
+              />
+              {reviewSearch && (
+                <button
+                  aria-label="Clear search"
+                  className="statement-search-clear"
+                  onClick={() => setReviewSearch('')}
+                  type="button"
+                >
+                  x
+                </button>
+              )}
+            </label>
+          </div>
+
           <div className="statement-preview-list">
-            {activeRows.map((row) => {
+            {filteredRows.map((row) => {
               const isEditing = editingIds.has(row.id);
               const rawVisible = rawVisibleIds.has(row.id);
+              const isActiveRow = activeStatuses.has(row.import_status);
 
               return (
                 <article className={`statement-preview-row ${row.import_status}`} key={row.id}>
                   <input
                     checked={selectedIds.has(row.id)}
+                    disabled={!isActiveRow}
                     onChange={() => toggleRow(row.id)}
                     type="checkbox"
                   />
@@ -942,12 +1066,12 @@ export default function StatementImportPage() {
                     {formatCurrency(Math.abs(Number(row.amount || 0)))}
                   </button>
                   <div className="statement-row-actions">
-                    <button className="text-button" onClick={() => toggleEdit(row.id)}>Edit</button>
+                    {isActiveRow && <button className="text-button" onClick={() => toggleEdit(row.id)}>Edit</button>}
                     <button className="text-button" onClick={() => toggleRaw(row.id)}>View Raw</button>
-                    <button className="text-button danger" onClick={() => ignoreRow(row)}>Ignore</button>
+                    {isActiveRow && <button className="text-button danger" onClick={() => ignoreRow(row)}>Ignore</button>}
                   </div>
 
-                  {isEditing && (
+                  {isActiveRow && isEditing && (
                     <div className="statement-row-editor">
                       <label className="field-group">
                         Description
@@ -1084,6 +1208,8 @@ export default function StatementImportPage() {
                 </button>
               )}
             </div>
+          ) : filteredRows.length === 0 ? (
+            <p className="muted-copy">No rows match this filter.</p>
           ) : activeRows.length === 0 && (
             <p className="muted-copy">No active rows left in this review queue.</p>
           )}
