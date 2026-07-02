@@ -219,6 +219,16 @@ function parseCurrency(value) {
     return (negative ? -1 : 1) * (Number(normalized) || 0);
   }
 
+  const separator = lastComma > -1 ? ',' : lastDot > -1 ? '.' : '';
+
+  if (separator) {
+    const parts = unsigned.split(separator);
+
+    if (parts.length === 2 && parts[1].length === 2) {
+      return (negative ? -1 : 1) * (Number(parts.join('.')) || 0);
+    }
+  }
+
   return (negative ? -1 : 1) * (Number(unsigned.replace(/[.,]/g, '')) || 0);
 }
 
@@ -545,13 +555,17 @@ function objectRowToTransaction(row, dateOrderOverride = '') {
     clean_description: cleanDescription(rawDescription) || rawDescription,
     amount: Math.abs(amount),
     transaction_type: getTransactionTypeFromText(rawDescription, amount),
-    import_status: getInitialImportStatus(rawDescription, amount, date)
+    import_status: getInitialImportStatus(rawDescription, amount, date),
+    source_row_number: row.source_row_number || null
   };
 }
 
 function parseObjectRows(rows, dateOrderOverride = '') {
   return rows
-    .map((row) => objectRowToTransaction(row, dateOrderOverride))
+    .map((row, index) => objectRowToTransaction({
+      ...row,
+      source_row_number: row.source_row_number || index + 2
+    }, dateOrderOverride))
     .filter(Boolean);
 }
 
@@ -578,7 +592,8 @@ function rowToTransaction(row, columns, headers = []) {
     clean_description: cleanDescription(rawDescription) || rawDescription,
     amount: Math.abs(amount),
     transaction_type: getTransactionTypeFromText(rawDescription, amount),
-    import_status: getInitialImportStatus(rawDescription, amount, date)
+    import_status: getInitialImportStatus(rawDescription, amount, date),
+    source_row_number: row.source_row_number || null
   };
 }
 
@@ -605,7 +620,10 @@ function parseRowsFromMatrix(rows) {
 
   const parsedRows = normalizedRows
     .slice(headerIndex + 1)
-    .map((row) => rowToTransaction(row, columns, headers))
+    .map((row, index) => rowToTransaction({
+      ...row,
+      source_row_number: headerIndex + index + 2
+    }, columns, headers))
     .filter(Boolean);
 
   if (parsedRows.length === 0) {
@@ -790,7 +808,7 @@ async function parseXlsxFile(file) {
 }
 
 function parseLineStatement(lines) {
-  return lines.map((line) => {
+  return lines.map((line, index) => {
     const monthPattern = Object.keys(monthNumbers)
       .sort((first, second) => second.length - first.length)
       .join('|');
@@ -826,7 +844,8 @@ function parseLineStatement(lines) {
       clean_description: cleanDescription(description) || description || 'Imported transaction',
       amount: Math.abs(amount),
       transaction_type: getTransactionTypeFromText(line, amount),
-      import_status: getInitialImportStatus(description, amount, normalizeDate(dateMatch[0]))
+      import_status: getInitialImportStatus(description, amount, normalizeDate(dateMatch[0])),
+      source_row_number: index + 1
     };
   }).filter((row) => row?.transaction_date && row.amount);
 }

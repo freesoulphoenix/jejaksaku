@@ -256,6 +256,7 @@ function normalizeImportedRow(row, userProfileId, statementImportId) {
   return {
     user_profile_id: userProfileId,
     statement_import_id: statementImportId,
+    source_row_number: row.source_row_number ? Number(row.source_row_number) : null,
     transaction_date: row.transaction_date,
     description: cleanDescription,
     raw_description: rawDescription,
@@ -294,7 +295,7 @@ export async function saveImportedTransactions(statementImportId, rows) {
     const { data, error } = await client
       .from('imported_transactions')
       .upsert(batch, {
-        onConflict: 'statement_import_id,transaction_date,description,amount',
+        onConflict: 'statement_import_id,source_row_number',
         ignoreDuplicates: true
       })
       .select('*');
