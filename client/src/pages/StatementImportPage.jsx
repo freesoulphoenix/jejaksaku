@@ -13,6 +13,7 @@ import {
   deleteStatementImportFile,
   findDuplicateStatementImport,
   getImportedTransactions,
+  IMPORTED_TRANSACTION_REVIEW_PAGE_SIZE,
   getStatementImports,
   saveImportedTransactions,
   updateImportedTransaction,
@@ -30,6 +31,13 @@ const today = getLocalIsoDate();
 const allowedExtensions = ['pdf', 'csv', 'xls', 'xlsx'];
 const activeStatuses = new Set(['pending', 'needs_review']);
 const processedStatuses = new Set(['imported', 'ignored', 'duplicate']);
+const emptyReviewSummary = {
+  count: 0,
+  linkedRows: 0,
+  rowsNeedingReview: 0,
+  totalExpense: 0,
+  totalIncome: 0
+};
 const reviewFilters = [
   { id: 'all', label: 'All' },
   { id: 'income', label: 'Income' },
@@ -101,10 +109,6 @@ function normalizeSuggestionText(value) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9+]+/g, ' ').trim();
 }
 
-function normalizeSearchText(value) {
-  return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
 export default function StatementImportPage() {
   const [imports, setImports] = useState([]);
   const [previewRows, setPreviewRows] = useState([]);
@@ -119,6 +123,9 @@ export default function StatementImportPage() {
   const [importSort, setImportSort] = useState('latest');
   const [reviewFilter, setReviewFilter] = useState('all');
   const [reviewSearch, setReviewSearch] = useState('');
+  const [reviewTotalCount, setReviewTotalCount] = useState(0);
+  const [reviewSummary, setReviewSummary] = useState(emptyReviewSummary);
+  const [loadingMoreRows, setLoadingMoreRows] = useState(false);
   const [editingIds, setEditingIds] = useState(new Set());
   const [rawVisibleIds, setRawVisibleIds] = useState(new Set());
   const [pendingMatch, setPendingMatch] = useState(null);
@@ -153,72 +160,7 @@ export default function StatementImportPage() {
     previewRows.filter((row) => activeStatuses.has(row.import_status))
   ), [previewRows]);
 
-  const accountNameById = useMemo(() => (
-    new Map(accounts.map((account) => [account.id, account.name]))
-  ), [accounts]);
-  const categoryNameById = useMemo(() => (
-    new Map(allCategoryOptions.map((category) => [category.id, category.displayName]))
-  ), [allCategoryOptions]);
-  const projectTagNameById = useMemo(() => (
-    new Map(projectTags.map((tag) => [tag.id, tag.name]))
-  ), [projectTags]);
-
-  const filteredRows = useMemo(() => {
-    const baseRows = reviewFilter === 'linked'
-      ? previewRows.filter((row) => row.import_status === 'duplicate')
-      : activeRows.filter((row) => {
-        if (reviewFilter === 'income') {
-          return row.transaction_type === 'income';
-        }
-
-        if (reviewFilter === 'expense') {
-          return row.transaction_type === 'expense';
-        }
-
-        if (reviewFilter === 'transfer-in') {
-          return row.transaction_type === 'transfer' && row.money_direction === 'in';
-        }
-
-        if (reviewFilter === 'transfer-out') {
-          return row.transaction_type === 'transfer' && row.money_direction === 'out';
-        }
-
-        if (reviewFilter === 'needs-review') {
-          return row.import_status === 'needs_review';
-        }
-
-        return true;
-      });
-    const query = normalizeSearchText(reviewSearch);
-
-    if (!query) {
-      return baseRows;
-    }
-
-    return baseRows.filter((row) => normalizeSearchText([
-      row.clean_description,
-      row.description,
-      row.raw_description,
-      row.transaction_date,
-      row.transaction_type,
-      row.money_direction,
-      row.import_status,
-      row.amount,
-      accountNameById.get(row.account_id),
-      accountNameById.get(row.from_account_id),
-      accountNameById.get(row.to_account_id),
-      categoryNameById.get(row.category_id),
-      projectTagNameById.get(row.project_tag_id)
-    ].filter(Boolean).join(' ')).includes(query));
-  }, [
-    accountNameById,
-    activeRows,
-    categoryNameById,
-    previewRows,
-    projectTagNameById,
-    reviewFilter,
-    reviewSearch
-  ]);
+  const filteredRows = previewRows;
 
   const filteredActiveRows = useMemo(() => (
     filteredRows.filter((row) => activeStatuses.has(row.import_status))
@@ -232,24 +174,10 @@ export default function StatementImportPage() {
     previewRows.filter((row) => processedStatuses.has(row.import_status))
   ), [previewRows]);
 
-  const summary = useMemo(() => {
-    const totalIncome = selectedRows
-      .filter((row) => row.transaction_type === 'income')
-      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalExpense = selectedRows
-      .filter((row) => row.transaction_type === 'expense')
-      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const rowsNeedingReview = activeRows.filter((row) => row.import_status === 'needs_review').length;
-    const linkedRows = processedRows.filter((row) => row.import_status === 'duplicate').length;
-
-    return {
-      linkedRows,
-      netAmount: totalIncome - totalExpense,
-      rowsNeedingReview,
-      totalExpense,
-      totalIncome
-    };
-  }, [activeRows, processedRows, selectedRows]);
+  const summary = useMemo(() => ({
+    ...reviewSummary,
+    netAmount: reviewSummary.totalIncome - reviewSummary.totalExpense
+  }), [reviewSummary]);
 
   async function loadImports(background = false) {
     setError('');
@@ -304,6 +232,16 @@ export default function StatementImportPage() {
       setSourceName(defaultAccount?.name || sourceOptions[0] || 'Generic PDF');
     }
   }, [defaultAccount?.name, loading, sourceName, sourceOptions]);
+
+  useEffect(() => {
+    if (!activeImport) {
+      return;
+    }
+
+    loadReviewRows(activeImport).catch((err) => {
+      setError(err.message || 'Unable to filter import preview.');
+    });
+  }, [reviewFilter, reviewSearch]);
 
   function handleFileChange(event) {
     const selectedFile = event.target.files?.[0] || null;
@@ -485,15 +423,35 @@ export default function StatementImportPage() {
     });
   }
 
+  async function loadReviewRows(statementImport, { append = false } = {}) {
+    if (!statementImport?.id) {
+      return;
+    }
+
+    const offset = append ? previewRows.length : 0;
+    const result = await getImportedTransactions(statementImport.id, {
+      filter: reviewFilter,
+      offset,
+      pageSize: IMPORTED_TRANSACTION_REVIEW_PAGE_SIZE,
+      search: reviewSearch
+    });
+
+    setPreviewRows((currentRows) => (append ? [...currentRows, ...result.rows] : result.rows));
+    setReviewTotalCount(result.count);
+    setReviewSummary(result.summary || emptyReviewSummary);
+
+    if (!append) {
+      setSelectedIds(new Set());
+    }
+  }
+
   async function openImportPreview(statementImport) {
     setError('');
 
     try {
-      const rows = await getImportedTransactions(statementImport.id);
       setActiveImport(statementImport);
       setReviewCollapsed(false);
-      setPreviewRows(rows);
-      selectRows(rows.filter((row) => row.import_status === 'pending'));
+      await loadReviewRows(statementImport);
     } catch (err) {
       setError(err.message || 'Unable to open import preview.');
     }
@@ -525,19 +483,11 @@ export default function StatementImportPage() {
         throw new Error('No transaction rows were found in this statement. Check that the file contains dated debit/credit rows.');
       }
 
-      const savedRows = await saveImportedTransactions(statementImport.id, getRowsWithSourceAccount(rows, statementImport.bank_name));
-      const reviewRows = savedRows.length > 0
-        ? savedRows
-        : await getImportedTransactions(statementImport.id);
-
-      if (reviewRows.length === 0) {
-        throw new Error('No new review rows were saved. Delete this upload and import the statement again.');
-      }
+      await saveImportedTransactions(statementImport.id, getRowsWithSourceAccount(rows, statementImport.bank_name));
 
       setActiveImport(statementImport);
       setReviewCollapsed(false);
-      setPreviewRows(reviewRows);
-      selectRows(reviewRows.filter((row) => row.import_status === 'pending'));
+      await loadReviewRows(statementImport);
       await loadImports();
     } catch (err) {
       setError(err.message || 'Unable to re-parse this statement.');
@@ -584,22 +534,13 @@ export default function StatementImportPage() {
         fileHash: duplicate.fileHash
       });
       const rowsWithSourceAccount = getRowsWithSourceAccount(rows);
-      const savedRows = await saveImportedTransactions(statementImport.id, rowsWithSourceAccount);
-      const reviewRows = savedRows.length > 0
-        ? savedRows
-        : await getImportedTransactions(statementImport.id);
-
-      if (reviewRows.length === 0) {
-        await deleteStatementImportFile(statementImport);
-        throw new Error('No review rows were saved from this statement. Check that the file contains dated debit/credit rows.');
-      }
+      await saveImportedTransactions(statementImport.id, rowsWithSourceAccount);
 
       setFile(null);
       event.target.reset();
       setActiveImport(statementImport);
       setReviewCollapsed(false);
-      setPreviewRows(reviewRows);
-      selectRows(reviewRows.filter((row) => row.import_status === 'pending'));
+      await loadReviewRows(statementImport);
       await loadImports();
     } catch (err) {
       setError(err.message || 'Unable to upload and parse statement.');
@@ -630,6 +571,8 @@ export default function StatementImportPage() {
         setActiveImport(null);
         setReviewCollapsed(false);
         setPreviewRows([]);
+        setReviewTotalCount(0);
+        setReviewSummary(emptyReviewSummary);
         setSelectedIds(new Set());
       }
     } catch (err) {
@@ -776,10 +719,26 @@ export default function StatementImportPage() {
       return;
     }
 
-    const refreshedRows = await getImportedTransactions(activeImport.id);
-    setPreviewRows(refreshedRows);
+    await loadReviewRows(activeImport);
     setSelectedIds(new Set());
     await loadImports();
+  }
+
+  async function loadMoreReviewRows() {
+    if (!activeImport || loadingMoreRows) {
+      return;
+    }
+
+    setLoadingMoreRows(true);
+    setError('');
+
+    try {
+      await loadReviewRows(activeImport, { append: true });
+    } catch (err) {
+      setError(err.message || 'Unable to load more rows.');
+    } finally {
+      setLoadingMoreRows(false);
+    }
   }
 
   async function processImportRowQueue(rows) {
@@ -958,7 +917,7 @@ export default function StatementImportPage() {
           {!reviewCollapsed && (
             <>
           <section className="statement-summary-grid">
-            <span><strong>{selectedRows.length}</strong> selected</span>
+            <span><strong>{reviewTotalCount}</strong> rows</span>
             <span><strong>{formatCurrency(summary.totalIncome)}</strong> income</span>
             <span><strong>{formatCurrency(summary.totalExpense)}</strong> expense</span>
             <span><strong>{formatCurrency(summary.netAmount)}</strong> net</span>
@@ -1199,6 +1158,19 @@ export default function StatementImportPage() {
             })}
           </div>
 
+          {previewRows.length < reviewTotalCount && (
+            <button
+              className="statement-load-more"
+              disabled={loadingMoreRows}
+              onClick={loadMoreReviewRows}
+              type="button"
+            >
+              {loadingMoreRows
+                ? 'Loading...'
+                : `Load more (${reviewTotalCount - previewRows.length} remaining)`}
+            </button>
+          )}
+
           {previewRows.length === 0 ? (
             <div className="empty-state">
               <p className="muted-copy">No rows were parsed from this upload.</p>
@@ -1210,7 +1182,7 @@ export default function StatementImportPage() {
             </div>
           ) : filteredRows.length === 0 ? (
             <p className="muted-copy">No rows match this filter.</p>
-          ) : activeRows.length === 0 && (
+          ) : reviewFilter !== 'linked' && activeRows.length === 0 && (
             <p className="muted-copy">No active rows left in this review queue.</p>
           )}
 

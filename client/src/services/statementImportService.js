@@ -5,6 +5,7 @@ import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 const STATEMENT_BUCKET = 'statements';
 const IMPORTED_TRANSACTION_BATCH_SIZE = 200;
 const IMPORTED_TRANSACTION_FETCH_SIZE = 1000;
+export const IMPORTED_TRANSACTION_REVIEW_PAGE_SIZE = 100;
 
 function requireSupabase() {
   if (!supabase) {
@@ -232,24 +233,92 @@ export async function updateStatementImportStatus(id, importStatus) {
   return data;
 }
 
-export async function getImportedTransactions(statementImportId) {
-  const { client, userProfileId } = await getScopedClient();
+function applyImportedTransactionReviewFilters(query, { filter = 'all', search = '' } = {}) {
+  if (filter === 'linked') {
+    query = query.eq('import_status', 'duplicate');
+  } else {
+    query = query.in('import_status', ['pending', 'needs_review']);
+
+    if (filter === 'income') {
+      query = query.eq('transaction_type', 'income');
+    } else if (filter === 'expense') {
+      query = query.eq('transaction_type', 'expense');
+    } else if (filter === 'transfer-in') {
+      query = query.eq('transaction_type', 'transfer').eq('money_direction', 'in');
+    } else if (filter === 'transfer-out') {
+      query = query.eq('transaction_type', 'transfer').eq('money_direction', 'out');
+    } else if (filter === 'needs-review') {
+      query = query.eq('import_status', 'needs_review');
+    }
+  }
+
+  const searchTerm = String(search || '').trim().replace(/,/g, ' ');
+
+  if (searchTerm) {
+    const pattern = `%${searchTerm}%`;
+    query = query.or([
+      `description.ilike.${pattern}`,
+      `raw_description.ilike.${pattern}`,
+      `clean_description.ilike.${pattern}`,
+      `transaction_type.ilike.${pattern}`,
+      `money_direction.ilike.${pattern}`,
+      `import_status.ilike.${pattern}`
+    ].join(','));
+  }
+
+  return query;
+}
+
+function summarizeImportedRows(rows = [], count = 0) {
+  return rows.reduce((summary, row) => {
+    const amount = Number(row.amount || 0);
+
+    if (row.transaction_type === 'income') {
+      summary.totalIncome += amount;
+    } else if (row.transaction_type === 'expense') {
+      summary.totalExpense += amount;
+    }
+
+    if (row.import_status === 'needs_review') {
+      summary.rowsNeedingReview += 1;
+    }
+
+    if (row.import_status === 'duplicate') {
+      summary.linkedRows += 1;
+    }
+
+    return summary;
+  }, {
+    count,
+    linkedRows: 0,
+    rowsNeedingReview: 0,
+    totalExpense: 0,
+    totalIncome: 0
+  });
+}
+
+async function getImportedTransactionSummary(client, userProfileId, statementImportId, options = {}) {
   const rows = [];
+  let count = 0;
   let from = 0;
 
   while (true) {
     const to = from + IMPORTED_TRANSACTION_FETCH_SIZE - 1;
-    const { data, error } = await client
-      .from('imported_transactions')
-      .select('*')
-      .eq('user_profile_id', userProfileId)
-      .eq('statement_import_id', statementImportId)
-      .order('transaction_date', { ascending: false })
-      .order('source_row_number', { ascending: true, nullsFirst: false })
-      .range(from, to);
+    const { data, error, count: matchingCount } = await applyImportedTransactionReviewFilters(
+      client
+        .from('imported_transactions')
+        .select('amount, transaction_type, import_status', { count: from === 0 ? 'exact' : undefined })
+        .eq('user_profile_id', userProfileId)
+        .eq('statement_import_id', statementImportId),
+      options
+    ).range(from, to);
 
     if (error) {
       throw error;
+    }
+
+    if (from === 0) {
+      count = matchingCount || 0;
     }
 
     rows.push(...(data || []));
@@ -261,7 +330,35 @@ export async function getImportedTransactions(statementImportId) {
     from += IMPORTED_TRANSACTION_FETCH_SIZE;
   }
 
-  return rows;
+  return summarizeImportedRows(rows, count);
+}
+
+export async function getImportedTransactions(statementImportId, options = {}) {
+  const { client, userProfileId } = await getScopedClient();
+  const pageSize = options.pageSize || IMPORTED_TRANSACTION_REVIEW_PAGE_SIZE;
+  const from = options.offset || 0;
+  const to = from + pageSize - 1;
+  const { data, error, count } = await applyImportedTransactionReviewFilters(
+    client
+      .from('imported_transactions')
+      .select('*', { count: 'exact' })
+      .eq('user_profile_id', userProfileId)
+      .eq('statement_import_id', statementImportId)
+      .order('transaction_date', { ascending: false })
+      .order('source_row_number', { ascending: true, nullsFirst: false }),
+    options
+  ).range(from, to);
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    count: count || 0,
+    hasMore: from + (data?.length || 0) < (count || 0),
+    rows: data || [],
+    summary: await getImportedTransactionSummary(client, userProfileId, statementImportId, options)
+  };
 }
 
 function normalizeImportedRow(row, userProfileId, statementImportId) {
@@ -305,27 +402,23 @@ export async function saveImportedTransactions(statementImportId, rows) {
   }
 
   const payload = rows.map((row) => normalizeImportedRow(row, userProfileId, statementImportId));
-  const savedRows = [];
 
   for (let index = 0; index < payload.length; index += IMPORTED_TRANSACTION_BATCH_SIZE) {
     const batch = payload.slice(index, index + IMPORTED_TRANSACTION_BATCH_SIZE);
-    const { data, error } = await client
+    const { error } = await client
       .from('imported_transactions')
       .upsert(batch, {
         onConflict: 'statement_import_id,source_row_number',
         ignoreDuplicates: true
-      })
-      .select('*');
+      });
 
     if (error) {
       throw error;
     }
-
-    savedRows.push(...(data || []));
   }
 
   await updateStatementImportStatus(statementImportId, 'pending');
-  return savedRows;
+  return [];
 }
 
 export async function updateImportedTransactionStatus(id, importStatus, createdTransactionId = null) {

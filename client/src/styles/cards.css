@@ -501,6 +501,22 @@
   margin: 16px 0;
 }
 
+.statement-load-more {
+  justify-self: start;
+  border: 0;
+  padding: 2px 0;
+  color: var(--color-primary);
+  background: transparent;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-align: left;
+}
+
+.statement-load-more:disabled {
+  opacity: 0.55;
+}
+
 .statement-review-filters {
   display: grid;
   gap: 10px;
