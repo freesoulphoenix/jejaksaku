@@ -4,6 +4,7 @@ import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 const STATEMENT_BUCKET = 'statements';
 const IMPORTED_TRANSACTION_BATCH_SIZE = 200;
+const IMPORTED_TRANSACTION_FETCH_SIZE = 1000;
 
 function requireSupabase() {
   if (!supabase) {
@@ -233,18 +234,34 @@ export async function updateStatementImportStatus(id, importStatus) {
 
 export async function getImportedTransactions(statementImportId) {
   const { client, userProfileId } = await getScopedClient();
-  const { data, error } = await client
-    .from('imported_transactions')
-    .select('*')
-    .eq('user_profile_id', userProfileId)
-    .eq('statement_import_id', statementImportId)
-    .order('transaction_date', { ascending: false });
+  const rows = [];
+  let from = 0;
 
-  if (error) {
-    throw error;
+  while (true) {
+    const to = from + IMPORTED_TRANSACTION_FETCH_SIZE - 1;
+    const { data, error } = await client
+      .from('imported_transactions')
+      .select('*')
+      .eq('user_profile_id', userProfileId)
+      .eq('statement_import_id', statementImportId)
+      .order('transaction_date', { ascending: false })
+      .order('source_row_number', { ascending: true, nullsFirst: false })
+      .range(from, to);
+
+    if (error) {
+      throw error;
+    }
+
+    rows.push(...(data || []));
+
+    if (!data || data.length < IMPORTED_TRANSACTION_FETCH_SIZE) {
+      break;
+    }
+
+    from += IMPORTED_TRANSACTION_FETCH_SIZE;
   }
 
-  return data;
+  return rows;
 }
 
 function normalizeImportedRow(row, userProfileId, statementImportId) {
