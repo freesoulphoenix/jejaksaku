@@ -24,7 +24,7 @@ export const defaultCategoryTree = [
     children: ['Apps & Software', 'Media Streaming', 'Cloud Storage']
   },
   {
-    name: 'Debt',
+    name: 'Liability',
     children: ['Loan Payment', 'Credit Card Payment']
   },
   {

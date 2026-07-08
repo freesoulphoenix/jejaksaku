@@ -62,8 +62,21 @@ const importSuggestionRules = [
     category: ['Subscription', 'Apps & Software'],
     keywords: ['chatgpt', 'openai', 'claude', 'anthropic', 'adobe', 'creative cloud', 'canva', 'figma', 'microsoft 365', 'office 365'],
     projectTag: 'Subscription'
+  },
+  {
+    category: ['Liability', 'Credit Card Payment'],
+    keywords: ['credit card payment', 'kartu kredit', 'card payment', 'cc payment', 'visa payment', 'mastercard payment'],
+    projectTag: null
+  },
+  {
+    category: ['Liability', 'Loan Payment'],
+    keywords: ['loan payment', 'cicilan', 'angsuran', 'pinjaman', 'mortgage', 'kpr', 'paylater', 'pay later'],
+    projectTag: null
   }
 ];
+const categoryParentAliases = {
+  Liability: ['Debt']
+};
 
 function getFileType(file) {
   return file.name.split('.').pop()?.toLowerCase() || '';
@@ -363,10 +376,11 @@ export default function StatementImportPage() {
   }
 
   function findCategoryByPath(parentName, childName) {
+    const parentNames = [parentName, ...(categoryParentAliases[parentName] || [])];
     const parent = categories.find((category) => (
       !category.parent_category_id
       && category.type === 'expense'
-      && category.name.toLowerCase() === parentName.toLowerCase()
+      && parentNames.some((name) => category.name.toLowerCase() === name.toLowerCase())
     ));
 
     if (!parent) {
@@ -381,6 +395,10 @@ export default function StatementImportPage() {
   }
 
   function findProjectTagByName(name) {
+    if (!name) {
+      return null;
+    }
+
     return projectTags.find((tag) => tag.name.toLowerCase() === name.toLowerCase()) || null;
   }
 

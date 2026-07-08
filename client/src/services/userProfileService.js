@@ -91,6 +91,18 @@ async function seedUserDefaults(client, userProfileId) {
     .eq('name', 'Apartment')
     .eq('type', 'expense');
 
+  const { error: liabilityRenameError } = await client
+    .from('categories')
+    .update({ name: 'Liability' })
+    .eq('user_profile_id', userProfileId)
+    .eq('name', 'Debt')
+    .eq('type', 'expense')
+    .is('parent_category_id', null);
+
+  if (liabilityRenameError && liabilityRenameError.code !== '23505') {
+    throw liabilityRenameError;
+  }
+
   const { error: parentCategoryError } = await client
     .from('categories')
     .upsert(defaultCategoryTree.map((category, index) => ({
