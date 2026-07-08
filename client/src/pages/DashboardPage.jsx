@@ -166,7 +166,7 @@ export default function DashboardPage({ onNavigate }) {
         </div>
         <div className="hero-metrics">
           <span>Assets <strong>{formatShortCurrency(summary.assets)}</strong></span>
-          <span>Debt <strong>{formatShortCurrency(summary.debt)}</strong></span>
+          <span>Liabilities <strong>{formatShortCurrency(summary.debt)}</strong></span>
           <span>Due <strong>{formatShortCurrency(summary.dueThisMonth)}</strong></span>
         </div>
       </section>
@@ -210,7 +210,7 @@ export default function DashboardPage({ onNavigate }) {
 
         <article className="panel">
           <div className="panel-header">
-            <h2>Assets vs Debt</h2>
+            <h2>Assets vs Liabilities</h2>
           </div>
           <div className="balance-bars">
             <div>
@@ -223,7 +223,7 @@ export default function DashboardPage({ onNavigate }) {
               </span>
             </div>
             <div>
-              <div className="bar-label"><span>Debt</span><strong>{formatCurrency(summary.debt)}</strong></div>
+              <div className="bar-label"><span>Liabilities</span><strong>{formatCurrency(summary.debt)}</strong></div>
               <span className="progress-track">
                 <span
                   className={`progress-fill danger ${summary.debt <= 0 ? 'empty' : ''}`}
