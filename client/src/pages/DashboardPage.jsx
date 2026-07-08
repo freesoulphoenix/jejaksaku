@@ -117,6 +117,8 @@ export default function DashboardPage({ onNavigate }) {
   const { recentTransactions, spendingByAccount, spendingByProjectTag, summary, topSpendingCategories } = dashboard;
   const maxAccountSpend = Math.max(...spendingByAccount.map((item) => item.value), 1);
   const maxProjectTagSpend = Math.max(...spendingByProjectTag.map((item) => item.value), 1);
+  const monthCashFlow = summary.monthIncome - summary.monthSpending;
+  const incomeExpenseMax = Math.max(summary.monthIncome, summary.monthSpending, 1);
   const trendHeights = useMemo(() => {
     const values = topSpendingCategories.slice(0, 6).map((item) => item.value);
     const maxValue = Math.max(...values, 1);
@@ -177,6 +179,35 @@ export default function DashboardPage({ onNavigate }) {
       </section>
 
       <section className="content-grid">
+        <article className="panel income-expense-panel">
+          <div className="panel-header">
+            <h2>Income vs Expense</h2>
+            <span className={`summary-pill ${monthCashFlow >= 0 ? 'success' : 'danger'}`}>
+              {monthCashFlow >= 0 ? '+' : ''}{formatShortCurrency(monthCashFlow)}
+            </span>
+          </div>
+          <div className="income-expense-bars">
+            <div>
+              <div className="bar-label"><span>Income</span><strong>{formatCurrency(summary.monthIncome)}</strong></div>
+              <span className="progress-track">
+                <span
+                  className={`progress-fill success ${summary.monthIncome <= 0 ? 'empty' : ''}`}
+                  style={{ width: getMeterWidth(summary.monthIncome, incomeExpenseMax) }}
+                />
+              </span>
+            </div>
+            <div>
+              <div className="bar-label"><span>Expense</span><strong>{formatCurrency(summary.monthSpending)}</strong></div>
+              <span className="progress-track">
+                <span
+                  className={`progress-fill danger ${summary.monthSpending <= 0 ? 'empty' : ''}`}
+                  style={{ width: getMeterWidth(summary.monthSpending, incomeExpenseMax) }}
+                />
+              </span>
+            </div>
+          </div>
+        </article>
+
         <article className="panel">
           <div className="panel-header">
             <h2>Assets vs Debt</h2>

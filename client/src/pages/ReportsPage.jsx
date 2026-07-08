@@ -13,11 +13,11 @@ const emptyFilters = {
   startDate: ''
 };
 
-function BreakdownList({ items }) {
+function BreakdownList({ emptyText = 'No spending in this filter.', items }) {
   const max = Math.max(...items.map((item) => item.value), 1);
 
   if (items.length === 0) {
-    return <p className="muted-copy">No spending in this filter.</p>;
+    return <p className="muted-copy">{emptyText}</p>;
   }
 
   return (
@@ -396,6 +396,14 @@ export default function ReportsPage() {
                 <h2>Top Category Breakdown</h2>
               </div>
               <BreakdownList items={reportData.topCategoryBreakdown} />
+            </article>
+
+            <article className="panel">
+              <div className="panel-header">
+                <h2>Income Breakdown</h2>
+              </div>
+              <PieSummary items={reportData.incomeBreakdown} />
+              <BreakdownList emptyText="No income in this filter." items={reportData.incomeBreakdown} />
             </article>
 
             <article className="panel">

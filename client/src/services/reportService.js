@@ -148,6 +148,7 @@ export async function getReportData(filters = {}) {
     cashFlow: monthlyIncome - monthlySpending,
     categories,
     filteredTransactions,
+    incomeBreakdown: groupBy(filteredTransactions, (transaction) => getTopCategoryName(transaction, categoryById), getIncomeAmount),
     monthlyIncome,
     monthlySeries,
     monthlySpending,

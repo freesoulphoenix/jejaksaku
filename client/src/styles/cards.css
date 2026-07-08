@@ -734,6 +734,25 @@
   font-weight: 900;
 }
 
+.summary-pill.success {
+  color: #047857;
+  background: #dcfce7;
+}
+
+.summary-pill.danger {
+  color: #be123c;
+  background: #ffe4e6;
+}
+
+.income-expense-panel {
+  align-content: start;
+}
+
+.income-expense-bars {
+  display: grid;
+  gap: 14px;
+}
+
 .donut-row {
   display: flex;
   align-items: center;
