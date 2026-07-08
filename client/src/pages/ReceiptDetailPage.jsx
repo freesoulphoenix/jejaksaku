@@ -209,7 +209,7 @@ export default function ReceiptDetailPage({
             <span className="summary-pill">{receipt.processing_status || 'pending'}</span>
           </div>
 
-          <form className="form-grid" onSubmit={handleSave}>
+          <form className="form-grid receipt-review-form" onSubmit={handleSave}>
             <label className="field-group span-2">
               Merchant
               <input

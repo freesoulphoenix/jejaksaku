@@ -72,6 +72,14 @@ textarea:focus {
   font-size: 0.78rem;
 }
 
+.receipt-review-form .bounded-date-picker {
+  grid-column: 1 / -1;
+}
+
+.receipt-review-form .field-group:not(.span-2) {
+  grid-column: 1 / -1;
+}
+
 .form-grid {
   display: grid;
   gap: 14px;

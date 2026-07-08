@@ -55,6 +55,22 @@ function groupBy(transactions, getKey, getValue) {
     .sort((a, b) => b.value - a.value);
 }
 
+function getTopCategoryName(transaction, categoryById) {
+  const categoryId = transaction.category_id || transaction.categories?.id;
+  let category = categoryById.get(categoryId);
+  let topCategory = category;
+
+  while (category?.parent_category_id) {
+    category = categoryById.get(category.parent_category_id);
+
+    if (category) {
+      topCategory = category;
+    }
+  }
+
+  return topCategory?.name || transaction.categories?.name || 'Other';
+}
+
 function buildMonthlySeries(transactions) {
   const months = new Map();
 
@@ -90,6 +106,7 @@ function buildNetWorthTrend(accounts, monthlySeries) {
     runningNetWorth += item.cashFlow;
     return {
       month: item.month,
+      monthKey: item.monthKey,
       value: runningNetWorth
     };
   });
@@ -123,12 +140,12 @@ export async function getReportData(filters = {}) {
   const monthlySeries = buildMonthlySeries(filteredTransactions);
   const monthlySpending = sumValues(filteredTransactions, getExpenseAmount);
   const monthlyIncome = sumValues(filteredTransactions, getIncomeAmount);
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
 
   return {
     accounts: accountsWithBalances,
     accountBreakdown: groupBy(filteredTransactions, getTransactionAccountName, getExpenseAmount),
     cashFlow: monthlyIncome - monthlySpending,
-    categoryBreakdown: groupBy(filteredTransactions, (transaction) => transaction.categories?.name, getExpenseAmount),
     categories,
     filteredTransactions,
     monthlyIncome,
@@ -136,6 +153,7 @@ export async function getReportData(filters = {}) {
     monthlySpending,
     netWorthTrend: buildNetWorthTrend(accountsWithBalances, monthlySeries),
     projectTagBreakdown: groupBy(filteredTransactions, (transaction) => transaction.project_tags?.name, getExpenseAmount),
-    projectTags
+    projectTags,
+    topCategoryBreakdown: groupBy(filteredTransactions, (transaction) => getTopCategoryName(transaction, categoryById), getExpenseAmount)
   };
 }

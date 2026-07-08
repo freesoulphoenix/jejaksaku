@@ -126,6 +126,11 @@ export default function StatementImportPage() {
   const [reviewTotalCount, setReviewTotalCount] = useState(0);
   const [reviewSummary, setReviewSummary] = useState(emptyReviewSummary);
   const [loadingMoreRows, setLoadingMoreRows] = useState(false);
+  const [bulkValues, setBulkValues] = useState({
+    account_id: '',
+    category_id: '',
+    project_tag_id: ''
+  });
   const [editingIds, setEditingIds] = useState(new Set());
   const [rawVisibleIds, setRawVisibleIds] = useState(new Set());
   const [pendingMatch, setPendingMatch] = useState(null);
@@ -598,6 +603,10 @@ export default function StatementImportPage() {
       ids.includes(row.id) ? { ...row, [field]: value } : row
     )));
     await bulkUpdateImportedTransactions(ids, { [field]: value });
+    setBulkValues((currentValues) => ({
+      ...currentValues,
+      [field]: value
+    }));
   }
 
   async function saveRow(row) {
@@ -934,19 +943,19 @@ export default function StatementImportPage() {
           </div>
 
           <div className="filter-panel">
-            <select onChange={(event) => applyBulkField('account_id', event.target.value)} value="">
+            <select onChange={(event) => applyBulkField('account_id', event.target.value)} value={bulkValues.account_id}>
               <option value="">Apply account to selected</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>{account.name}</option>
               ))}
             </select>
-            <select onChange={(event) => applyBulkField('category_id', event.target.value)} value="">
+            <select onChange={(event) => applyBulkField('category_id', event.target.value)} value={bulkValues.category_id}>
               <option value="">Apply category to selected</option>
               {allCategoryOptions.map((category) => (
                 <option key={category.id} value={category.id}>{category.displayName}</option>
               ))}
             </select>
-            <select onChange={(event) => applyBulkField('project_tag_id', event.target.value)} value="">
+            <select onChange={(event) => applyBulkField('project_tag_id', event.target.value)} value={bulkValues.project_tag_id}>
               <option value="">Apply project tag to selected</option>
               {projectTags.map((tag) => (
                 <option key={tag.id} value={tag.id}>{tag.name}</option>

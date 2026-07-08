@@ -57,17 +57,130 @@ function MiniTrend({ items, valueKey = 'value' }) {
   );
 }
 
+const chartColors = ['#2196f3', '#26c6da', '#66bb6a', '#f59e0b', '#ef4444', '#7c3aed', '#64748b', '#14b8a6'];
+
+function buildPieBackground(items) {
+  const total = items.reduce((sum, item) => sum + Math.abs(Number(item.value || 0)), 0);
+  let cursor = 0;
+
+  if (!total) {
+    return '#eaf4fb';
+  }
+
+  return `conic-gradient(${items.map((item, index) => {
+    const start = cursor;
+    cursor += (Math.abs(Number(item.value || 0)) / total) * 100;
+    return `${chartColors[index % chartColors.length]} ${start}% ${cursor}%`;
+  }).join(', ')})`;
+}
+
+function buildYearlySeries(monthlySeries) {
+  const years = new Map();
+
+  monthlySeries.forEach((item) => {
+    const year = String(item.monthKey || '').slice(0, 4) || item.month;
+    const current = years.get(year) || {
+      cashFlow: 0,
+      income: 0,
+      label: year,
+      spending: 0
+    };
+
+    current.spending += item.spending || 0;
+    current.income += item.income || 0;
+    current.cashFlow += item.cashFlow || 0;
+    years.set(year, current);
+  });
+
+  return [...years.values()];
+}
+
+function getPieItems({ monthlySeries, netWorthTrend }, valueKey, period) {
+  if (valueKey === 'value') {
+    if (period === 'yearly') {
+      const yearlyNetWorth = new Map();
+
+      netWorthTrend.forEach((item) => {
+        const year = String(item.monthKey || '').slice(0, 4) || item.month;
+        yearlyNetWorth.set(year, {
+          label: year,
+          value: Math.max(Number(item.value || 0), 0)
+        });
+      });
+
+      return [...yearlyNetWorth.values()];
+    }
+
+    return netWorthTrend.map((item) => ({
+      label: item.month,
+      value: Math.max(Number(item.value || 0), 0)
+    }));
+  }
+
+  const sourceItems = period === 'yearly'
+    ? buildYearlySeries(monthlySeries)
+    : monthlySeries.map((item) => ({ ...item, label: item.month }));
+
+  return sourceItems.map((item) => ({
+    label: item.label || item.month,
+    value: Math.abs(Number(item[valueKey] || 0))
+  })).filter((item) => item.value > 0);
+}
+
+function PieSummary({ items }) {
+  const visibleItems = items.filter((item) => Number(item.value || 0) > 0).slice(-8);
+
+  if (visibleItems.length === 0) {
+    return <p className="muted-copy">No pie data yet.</p>;
+  }
+
+  return (
+    <div className="report-pie-summary">
+      <span
+        aria-label="Report pie chart"
+        className="report-pie-chart"
+        role="img"
+        style={{ background: buildPieBackground(visibleItems) }}
+      />
+      <div className="report-pie-legend">
+        {visibleItems.map((item, index) => (
+          <span key={`${item.label}-${item.value}`}>
+            <i style={{ background: chartColors[index % chartColors.length] }} />
+            <small>{item.label}</small>
+            <strong>{formatShortCurrency(item.value)}</strong>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReportChartPanel({ period, reportData, title, valueKey }) {
+  const trendItems = valueKey === 'value'
+    ? reportData.netWorthTrend.slice(-8)
+    : reportData.monthlySeries.slice(-8);
+  const pieItems = getPieItems(reportData, valueKey, period);
+
+  return (
+    <article className="panel">
+      <div className="panel-header">
+        <h2>{title}</h2>
+      </div>
+      <PieSummary items={pieItems} />
+      <MiniTrend items={trendItems} valueKey={valueKey} />
+    </article>
+  );
+}
+
 export default function ReportsPage() {
   const [filters, setFilters] = useState(emptyFilters);
   const [reportData, setReportData] = useState(null);
+  const [reportPeriod, setReportPeriod] = useState('monthly');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const rows = reportData?.filteredTransactions || [];
 
-  const visibleMonthlySeries = useMemo(() => (
-    reportData?.monthlySeries?.slice(-8) || []
-  ), [reportData]);
   const categoryOptions = useMemo(() => (
     getCategoryOptions(reportData?.categories || [])
   ), [reportData?.categories]);
@@ -251,40 +364,38 @@ export default function ReportsPage() {
             </article>
           </section>
 
+          <div className="button-row compact report-period-toggle" role="tablist" aria-label="Report chart period">
+            <button
+              aria-selected={reportPeriod === 'monthly'}
+              className={`secondary-button ${reportPeriod === 'monthly' ? 'active' : ''}`}
+              onClick={() => setReportPeriod('monthly')}
+              role="tab"
+              type="button"
+            >
+              Monthly
+            </button>
+            <button
+              aria-selected={reportPeriod === 'yearly'}
+              className={`secondary-button ${reportPeriod === 'yearly' ? 'active' : ''}`}
+              onClick={() => setReportPeriod('yearly')}
+              role="tab"
+              type="button"
+            >
+              Yearly
+            </button>
+          </div>
+
           <section className="content-grid">
-            <article className="panel">
-              <div className="panel-header">
-                <h2>Monthly Spending</h2>
-              </div>
-              <MiniTrend items={visibleMonthlySeries} valueKey="spending" />
-            </article>
+            <ReportChartPanel period={reportPeriod} reportData={reportData} title="Monthly Spending" valueKey="spending" />
+            <ReportChartPanel period={reportPeriod} reportData={reportData} title="Monthly Income" valueKey="income" />
+            <ReportChartPanel period={reportPeriod} reportData={reportData} title="Cash Flow" valueKey="cashFlow" />
+            <ReportChartPanel period={reportPeriod} reportData={reportData} title="Net Worth Trend" valueKey="value" />
 
             <article className="panel">
               <div className="panel-header">
-                <h2>Monthly Income</h2>
+                <h2>Top Category Breakdown</h2>
               </div>
-              <MiniTrend items={visibleMonthlySeries} valueKey="income" />
-            </article>
-
-            <article className="panel">
-              <div className="panel-header">
-                <h2>Cash Flow</h2>
-              </div>
-              <MiniTrend items={visibleMonthlySeries} valueKey="cashFlow" />
-            </article>
-
-            <article className="panel">
-              <div className="panel-header">
-                <h2>Net Worth Trend</h2>
-              </div>
-              <MiniTrend items={reportData.netWorthTrend.slice(-8)} />
-            </article>
-
-            <article className="panel">
-              <div className="panel-header">
-                <h2>Category Breakdown</h2>
-              </div>
-              <BreakdownList items={reportData.categoryBreakdown} />
+              <BreakdownList items={reportData.topCategoryBreakdown} />
             </article>
 
             <article className="panel">
