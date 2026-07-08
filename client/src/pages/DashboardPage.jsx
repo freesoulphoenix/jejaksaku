@@ -164,13 +164,13 @@ export default function DashboardPage({ onNavigate }) {
 
       <section className="hero-card">
         <div>
-          <p className="section-kicker">Last Month</p>
+          <p className="section-kicker">Last Month Balance</p>
           <h1>{formatCurrency(summary.lastMonthNet)}</h1>
         </div>
         <div className="hero-metrics">
           <span>Income <strong>{formatShortCurrency(summary.lastMonthIncome)}</strong></span>
           <span>Expense <strong>{formatShortCurrency(summary.lastMonthSpending)}</strong></span>
-          <span>Due <strong>{formatShortCurrency(summary.dueThisMonth)}</strong></span>
+          <span>Balance <strong>{formatShortCurrency(summary.lastMonthNet)}</strong></span>
         </div>
       </section>
 
