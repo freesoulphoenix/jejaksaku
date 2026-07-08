@@ -746,6 +746,7 @@
 
 .income-expense-panel {
   align-content: start;
+  grid-column: 1 / -1;
 }
 
 .income-expense-bars {

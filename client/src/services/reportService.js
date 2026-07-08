@@ -4,6 +4,9 @@ import { getProjectTags } from './projectTagService.js';
 import { getTransactions } from './transactionService.js';
 import { calculateAccountBalances, getTransactionAccountName } from '../utils/balance.js';
 
+const assetTypes = new Set(['Cash', 'Bank', 'E-Wallet', 'Investment']);
+const liabilityTypes = new Set(['PayLater', 'Loan']);
+
 function getMonthKey(dateString) {
   return String(dateString || '').slice(0, 7);
 }
@@ -141,6 +144,12 @@ export async function getReportData(filters = {}) {
   const monthlySpending = sumValues(filteredTransactions, getExpenseAmount);
   const monthlyIncome = sumValues(filteredTransactions, getIncomeAmount);
   const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const assets = accountsWithBalances
+    .filter((account) => assetTypes.has(account.type))
+    .reduce((sum, account) => sum + Number(account.reconciled_balance || 0), 0);
+  const liabilities = accountsWithBalances
+    .filter((account) => liabilityTypes.has(account.type))
+    .reduce((sum, account) => sum + Math.abs(Number(account.reconciled_balance || 0)), 0);
 
   return {
     accounts: accountsWithBalances,
@@ -153,6 +162,11 @@ export async function getReportData(filters = {}) {
     monthlySeries,
     monthlySpending,
     netWorthTrend: buildNetWorthTrend(accountsWithBalances, monthlySeries),
+    netWorthSummary: {
+      assets,
+      liabilities,
+      netWorth: assets - liabilities
+    },
     projectTagBreakdown: groupBy(filteredTransactions, (transaction) => transaction.project_tags?.name, getExpenseAmount),
     projectTags,
     topCategoryBreakdown: groupBy(filteredTransactions, (transaction) => getTopCategoryName(transaction, categoryById), getExpenseAmount)

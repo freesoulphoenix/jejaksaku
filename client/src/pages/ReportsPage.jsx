@@ -420,6 +420,38 @@ export default function ReportsPage() {
               <BreakdownList items={reportData.projectTagBreakdown} />
             </article>
           </section>
+
+          <article className="panel net-worth-report-panel">
+            <div className="panel-header">
+              <div>
+                <p className="section-kicker">Full Position</p>
+                <h2>Net Worth</h2>
+              </div>
+              <span className="summary-pill">{formatShortCurrency(reportData.netWorthSummary.netWorth)}</span>
+            </div>
+            <div className="balance-bars">
+              <div>
+                <div className="bar-label"><span>Assets</span><strong>{formatCurrency(reportData.netWorthSummary.assets)}</strong></div>
+                <span className="progress-track">
+                  <span
+                    className={`progress-fill success ${reportData.netWorthSummary.assets <= 0 ? 'empty' : ''}`}
+                    style={{ width: '100%' }}
+                  />
+                </span>
+              </div>
+              <div>
+                <div className="bar-label"><span>Liabilities</span><strong>{formatCurrency(reportData.netWorthSummary.liabilities)}</strong></div>
+                <span className="progress-track">
+                  <span
+                    className={`progress-fill danger ${reportData.netWorthSummary.liabilities <= 0 ? 'empty' : ''}`}
+                    style={{
+                      width: `${Math.min((reportData.netWorthSummary.liabilities / Math.max(reportData.netWorthSummary.assets, 1)) * 100, 100)}%`
+                    }}
+                  />
+                </span>
+              </div>
+            </div>
+          </article>
         </>
       )}
     </div>

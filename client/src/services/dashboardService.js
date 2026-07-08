@@ -24,12 +24,31 @@ function startOfMonth() {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
+function startOfLastMonth() {
+  const date = new Date();
+  return new Date(date.getFullYear(), date.getMonth() - 1, 1);
+}
+
+function endOfLastMonth() {
+  const date = new Date();
+  return new Date(date.getFullYear(), date.getMonth(), 0);
+}
+
 function isOnOrAfter(dateString, compareDate) {
   if (!dateString) {
     return false;
   }
 
   return new Date(`${dateString}T00:00:00`) >= compareDate;
+}
+
+function isBetween(dateString, startDate, endDate) {
+  if (!dateString) {
+    return false;
+  }
+
+  const date = new Date(`${dateString}T00:00:00`);
+  return date >= startDate && date <= endDate;
 }
 
 function isToday(dateString) {
@@ -83,6 +102,8 @@ export async function getDashboardData() {
   const today = startOfToday();
   const week = startOfWeek();
   const month = startOfMonth();
+  const lastMonthStart = startOfLastMonth();
+  const lastMonthEnd = endOfLastMonth();
 
   const todaySpending = transactions
     .filter((transaction) => isToday(transaction.transaction_date))
@@ -93,11 +114,21 @@ export async function getDashboardData() {
     .reduce((sum, transaction) => sum + getExpenseAmount(transaction), 0);
 
   const monthTransactions = transactions.filter((transaction) => isOnOrAfter(transaction.transaction_date, month));
+  const lastMonthTransactions = transactions.filter((transaction) => (
+    isBetween(transaction.transaction_date, lastMonthStart, lastMonthEnd)
+  ));
 
   const monthSpending = monthTransactions
     .reduce((sum, transaction) => sum + getExpenseAmount(transaction), 0);
 
   const monthIncome = monthTransactions
+    .filter((transaction) => transaction.transaction_type === 'income')
+    .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+
+  const lastMonthSpending = lastMonthTransactions
+    .reduce((sum, transaction) => sum + getExpenseAmount(transaction), 0);
+
+  const lastMonthIncome = lastMonthTransactions
     .filter((transaction) => transaction.transaction_type === 'income')
     .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
 
@@ -108,6 +139,9 @@ export async function getDashboardData() {
     summary: {
       assets,
       debt,
+      lastMonthIncome,
+      lastMonthNet: lastMonthIncome - lastMonthSpending,
+      lastMonthSpending,
       netWorth: assets - debt,
       todaySpending,
       weekSpending,

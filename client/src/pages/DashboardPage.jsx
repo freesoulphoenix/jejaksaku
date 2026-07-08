@@ -15,6 +15,9 @@ const emptyDashboard = {
   summary: {
     assets: 0,
     debt: 0,
+    lastMonthIncome: 0,
+    lastMonthNet: 0,
+    lastMonthSpending: 0,
     netWorth: 0,
     todaySpending: 0,
     weekSpending: 0,
@@ -161,12 +164,12 @@ export default function DashboardPage({ onNavigate }) {
 
       <section className="hero-card">
         <div>
-          <p className="section-kicker">Net Worth</p>
-          <h1>{formatCurrency(summary.netWorth)}</h1>
+          <p className="section-kicker">Last Month</p>
+          <h1>{formatCurrency(summary.lastMonthNet)}</h1>
         </div>
         <div className="hero-metrics">
-          <span>Assets <strong>{formatShortCurrency(summary.assets)}</strong></span>
-          <span>Liabilities <strong>{formatShortCurrency(summary.debt)}</strong></span>
+          <span>Income <strong>{formatShortCurrency(summary.lastMonthIncome)}</strong></span>
+          <span>Expense <strong>{formatShortCurrency(summary.lastMonthSpending)}</strong></span>
           <span>Due <strong>{formatShortCurrency(summary.dueThisMonth)}</strong></span>
         </div>
       </section>
@@ -208,31 +211,6 @@ export default function DashboardPage({ onNavigate }) {
           </div>
         </article>
 
-        <article className="panel">
-          <div className="panel-header">
-            <h2>Assets vs Liabilities</h2>
-          </div>
-          <div className="balance-bars">
-            <div>
-              <div className="bar-label"><span>Assets</span><strong>{formatCurrency(summary.assets)}</strong></div>
-              <span className="progress-track">
-                <span
-                  className={`progress-fill success ${summary.assets <= 0 ? 'empty' : ''}`}
-                  style={{ width: getMeterWidth(summary.assets, summary.assets) }}
-                />
-              </span>
-            </div>
-            <div>
-              <div className="bar-label"><span>Liabilities</span><strong>{formatCurrency(summary.debt)}</strong></div>
-              <span className="progress-track">
-                <span
-                  className={`progress-fill danger ${summary.debt <= 0 ? 'empty' : ''}`}
-                  style={{ width: getMeterWidth(summary.debt, summary.assets) }}
-                />
-              </span>
-            </div>
-          </div>
-        </article>
       </section>
 
       <section className="content-grid">
