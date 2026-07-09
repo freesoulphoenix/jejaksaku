@@ -17,6 +17,7 @@ function LinkIcon() {
 function getInitialForm(transaction, defaultAccountId = '') {
   return {
     transaction_type: transaction?.transaction_type || 'expense',
+    financial_activity: transaction?.financial_activity || 'standard',
     amount: transaction?.amount || 0,
     account_id: transaction?.account_id || (!transaction ? defaultAccountId : ''),
     from_account_id: transaction?.from_account_id || transaction?.account_id || (!transaction ? defaultAccountId : ''),
@@ -169,6 +170,22 @@ export default function AddTransactionModal({
               <option value="expense">Expense</option>
               <option value="income">Income</option>
               <option value="transfer">Transfer</option>
+            </select>
+          </label>
+
+          <label className="field-group">
+            Activity
+            <select
+              onChange={(event) => updateField('financial_activity', event.target.value)}
+              value={form.financial_activity}
+            >
+              <option value="standard">Standard</option>
+              <option value="purchase">Purchase</option>
+              <option value="payment">Credit payment</option>
+              <option value="refund">Refund</option>
+              <option value="fee">Fee / interest</option>
+              <option value="cash_advance">Cash advance</option>
+              <option value="installment">Installment</option>
             </select>
           </label>
           <label className="field-group">

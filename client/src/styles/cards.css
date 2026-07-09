@@ -1106,6 +1106,28 @@
   }
 }
 
+.credit-utilization-alert {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-warning) 38%, transparent);
+  border-radius: 16px;
+  color: var(--color-text);
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.credit-utilization-alert span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.credit-utilization-alert small {
+  color: var(--color-muted);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

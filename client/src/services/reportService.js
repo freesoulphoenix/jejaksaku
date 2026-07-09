@@ -3,9 +3,10 @@ import { getCategories } from './categoryService.js';
 import { getProjectTags } from './projectTagService.js';
 import { getTransactions } from './transactionService.js';
 import { calculateAccountBalances, getTransactionAccountName } from '../utils/balance.js';
+import { getReportIncomeAmount, getSpendingAmount } from '../utils/creditFacility.js';
 
 const assetTypes = new Set(['Cash', 'Bank', 'E-Wallet', 'Investment']);
-const liabilityTypes = new Set(['PayLater', 'Loan']);
+const liabilityTypes = new Set(['Credit Card', 'PayLater', 'Loan']);
 
 function getMonthKey(dateString) {
   return String(dateString || '').slice(0, 7);
@@ -21,18 +22,6 @@ function getMonthLabel(monthKey) {
     month: 'short',
     year: 'numeric'
   });
-}
-
-function getExpenseAmount(transaction) {
-  if (transaction.transaction_type === 'transfer') {
-    return Math.abs(Number(transaction.transfer_fee || 0));
-  }
-
-  return transaction.transaction_type === 'expense' ? Math.abs(Number(transaction.amount || 0)) : 0;
-}
-
-function getIncomeAmount(transaction) {
-  return transaction.transaction_type === 'income' ? Number(transaction.amount || 0) : 0;
 }
 
 function sumValues(items, getValue) {
@@ -92,8 +81,8 @@ function buildMonthlySeries(transactions) {
       spending: 0
     };
 
-    current.spending += getExpenseAmount(transaction);
-    current.income += getIncomeAmount(transaction);
+    current.spending += getSpendingAmount(transaction);
+    current.income += getReportIncomeAmount(transaction);
     current.cashFlow = current.income - current.spending;
     months.set(monthKey, current);
   });
@@ -141,8 +130,8 @@ export async function getReportData(filters = {}) {
   const accountsWithBalances = calculateAccountBalances(accounts, transactions);
   const filteredTransactions = filterTransactions(transactions, filters);
   const monthlySeries = buildMonthlySeries(filteredTransactions);
-  const monthlySpending = sumValues(filteredTransactions, getExpenseAmount);
-  const monthlyIncome = sumValues(filteredTransactions, getIncomeAmount);
+  const monthlySpending = sumValues(filteredTransactions, getSpendingAmount);
+  const monthlyIncome = sumValues(filteredTransactions, getReportIncomeAmount);
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const assets = accountsWithBalances
     .filter((account) => assetTypes.has(account.type))
@@ -153,11 +142,11 @@ export async function getReportData(filters = {}) {
 
   return {
     accounts: accountsWithBalances,
-    accountBreakdown: groupBy(filteredTransactions, getTransactionAccountName, getExpenseAmount),
+    accountBreakdown: groupBy(filteredTransactions, getTransactionAccountName, getSpendingAmount),
     cashFlow: monthlyIncome - monthlySpending,
     categories,
     filteredTransactions,
-    incomeBreakdown: groupBy(filteredTransactions, (transaction) => getTopCategoryName(transaction, categoryById), getIncomeAmount),
+    incomeBreakdown: groupBy(filteredTransactions, (transaction) => getTopCategoryName(transaction, categoryById), getReportIncomeAmount),
     monthlyIncome,
     monthlySeries,
     monthlySpending,
@@ -167,8 +156,8 @@ export async function getReportData(filters = {}) {
       liabilities,
       netWorth: assets - liabilities
     },
-    projectTagBreakdown: groupBy(filteredTransactions, (transaction) => transaction.project_tags?.name, getExpenseAmount),
+    projectTagBreakdown: groupBy(filteredTransactions, (transaction) => transaction.project_tags?.name, getSpendingAmount),
     projectTags,
-    topCategoryBreakdown: groupBy(filteredTransactions, (transaction) => getTopCategoryName(transaction, categoryById), getExpenseAmount)
+    topCategoryBreakdown: groupBy(filteredTransactions, (transaction) => getTopCategoryName(transaction, categoryById), getSpendingAmount)
   };
 }

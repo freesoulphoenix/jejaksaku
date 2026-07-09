@@ -1,4 +1,5 @@
 import { formatCurrency } from '../utils/format.js';
+import { getCreditFacilityMetrics, isCreditFacility } from '../utils/creditFacility.js';
 
 function FlatIcon({ name }) {
   const commonProps = {
@@ -79,6 +80,11 @@ export default function AccountCard({
   const difference = Number(account.balance_difference || 0);
   const isRevealed = isDeleteRevealed ?? deleteRevealActive;
   const useFlatListRow = Boolean(onToggleDelete);
+  const creditMetrics = getCreditFacilityMetrics(account);
+  const showCreditMetrics = isCreditFacility(account) && creditMetrics.creditLimit > 0;
+  const displayBalance = isCreditFacility(account)
+    ? creditMetrics.outstandingDebt
+    : reconciledBalance;
 
   const differenceClassName =
     difference < 0
@@ -120,11 +126,17 @@ export default function AccountCard({
             <strong>{account.name}</strong>
 
             <small>
-              Calculated: {formatCurrency(calculatedBalance)}
-              {' - '}
-              <span className={differenceClassName}>
-                Difference: {formatCurrency(difference)}
-              </span>
+              {showCreditMetrics
+                ? `${Math.round(creditMetrics.utilizationPercent)}% used · ${formatCurrency(creditMetrics.availableCredit)} available`
+                : (
+                  <>
+                    Calculated: {formatCurrency(calculatedBalance)}
+                    {' - '}
+                    <span className={differenceClassName}>
+                      Difference: {formatCurrency(difference)}
+                    </span>
+                  </>
+                )}
             </small>
           </div>
 
@@ -137,7 +149,7 @@ export default function AccountCard({
                 .filter(Boolean)
                 .join(' ')}
             >
-              {formatCurrency(reconciledBalance)}
+              {formatCurrency(displayBalance)}
             </strong>
 
             <button
@@ -183,9 +195,15 @@ export default function AccountCard({
         <h2>{account.name}</h2>
       </div>
       <strong className={Number(reconciledBalance) < 0 ? 'amount-negative' : ''}>
-        {formatCurrency(reconciledBalance)}
+        {formatCurrency(displayBalance)}
       </strong>
       <div className="account-balance-detail">
+        {showCreditMetrics && (
+          <>
+            <span>{Math.round(creditMetrics.utilizationPercent)}% of {formatCurrency(creditMetrics.creditLimit)} used</span>
+            <span>{formatCurrency(creditMetrics.availableCredit)} available</span>
+          </>
+        )}
         <span>Calculated: {formatCurrency(calculatedBalance)}</span>
         <span className={differenceClassName}>Difference: {formatCurrency(difference)}</span>
         {account.last_reconciled_at && (

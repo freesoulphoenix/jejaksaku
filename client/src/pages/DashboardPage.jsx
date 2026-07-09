@@ -6,6 +6,7 @@ import { getDashboardData } from '../services/dashboardService.js';
 import { deleteTransaction } from '../services/transactionService.js';
 import { getUpcomingDue } from '../services/upcomingDueService.js';
 import { formatCurrency, formatShortCurrency } from '../utils/format.js';
+import { getCreditFacilityMetrics, isCreditFacility } from '../utils/creditFacility.js';
 
 const chartPalette = ['#2196f3', '#26c6da', '#64b5f6', '#7986cb', '#9575cd', '#10b981'];
 
@@ -122,6 +123,13 @@ export default function DashboardPage({ onNavigate }) {
   const maxProjectTagSpend = Math.max(...spendingByProjectTag.map((item) => item.value), 1);
   const monthCashFlow = summary.monthIncome - summary.monthSpending;
   const incomeExpenseMax = Math.max(summary.monthIncome, summary.monthSpending, 1);
+  const creditAlerts = dashboard.accounts
+    .filter((account) => isCreditFacility(account) && account.credit_alert_enabled !== false)
+    .map((account) => ({ account, metrics: getCreditFacilityMetrics(account) }))
+    .filter(({ account, metrics }) => (
+      metrics.utilizationPercent !== null
+      && metrics.utilizationPercent >= Number(account.credit_alert_threshold || 75)
+    ));
   const trendHeights = useMemo(() => {
     const values = topSpendingCategories.slice(0, 6).map((item) => item.value);
     const maxValue = Math.max(...values, 1);
@@ -161,6 +169,20 @@ export default function DashboardPage({ onNavigate }) {
     <div className="page-stack">
       {error && <p className="form-message error">{error}</p>}
       {loading && <p className="muted-copy">Loading dashboard...</p>}
+      {creditAlerts.map(({ account, metrics }) => (
+        <button
+          className="credit-utilization-alert"
+          key={account.id}
+          onClick={() => onNavigate?.('accounts')}
+          type="button"
+        >
+          <span>
+            <strong>{account.name} is {Math.round(metrics.utilizationPercent)}% utilized</strong>
+            <small>{formatCurrency(metrics.availableCredit)} available from {formatCurrency(metrics.creditLimit)}</small>
+          </span>
+          <span aria-hidden="true">›</span>
+        </button>
+      ))}
 
       <section className="hero-card">
         <div>

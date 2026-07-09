@@ -25,6 +25,7 @@ import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { earliestHistoricalDate, getLocalIsoDate } from '../utils/dateBounds.js';
 import { formatCurrency } from '../utils/format.js';
 import { resolveMoneyDirection } from '../utils/transactionDirection.js';
+import { classifyCreditStatementRow } from '../utils/creditFacility.js';
 
 const today = getLocalIsoDate();
 
@@ -157,7 +158,7 @@ export default function StatementImportPage() {
     getCategoryOptions(categories, row.transaction_type === 'transfer' ? null : row.transaction_type)
   );
   const sourceAccounts = useMemo(() => (
-    accounts.filter((account) => ['Bank', 'E-Wallet'].includes(account.type))
+    accounts.filter((account) => ['Bank', 'E-Wallet', 'Credit Card', 'PayLater'].includes(account.type))
   ), [accounts]);
   const sourceOptions = useMemo(() => (
     [...new Set([...sourceAccounts.map((account) => account.name), 'Generic PDF'])]
@@ -435,13 +436,14 @@ export default function StatementImportPage() {
     const fallbackAccount = sourceAccount || defaultAccount;
 
     return rows.map((row) => {
-      const suggestions = getImportSuggestions(row);
+      const classifiedRow = classifyCreditStatementRow(row, sourceAccount);
+      const suggestions = getImportSuggestions(classifiedRow);
 
       return {
-        ...row,
-        account_id: row.account_id || fallbackAccount?.id || null,
-        category_id: row.category_id || suggestions.category_id || null,
-        project_tag_id: row.project_tag_id || suggestions.project_tag_id || null
+        ...classifiedRow,
+        account_id: classifiedRow.account_id || fallbackAccount?.id || null,
+        category_id: classifiedRow.category_id || suggestions.category_id || null,
+        project_tag_id: classifiedRow.project_tag_id || suggestions.project_tag_id || null
       };
     });
   }
@@ -733,6 +735,7 @@ export default function StatementImportPage() {
       transfer_fee: row.transfer_fee || 0,
       transfer_purpose: row.transfer_purpose || '',
       money_direction: moneyDirection,
+      financial_activity: row.financial_activity || 'standard',
       notes: row.notes || (activeImport ? `Imported from ${activeImport.file_name}` : 'Imported from statement')
     });
 
@@ -1041,6 +1044,7 @@ export default function StatementImportPage() {
                     />
                     <small>
                       {row.transaction_date || 'No date'} - {row.transaction_type || 'No type'} - {row.money_direction || 'no direction'} - {row.import_status}
+                      {row.financial_activity && row.financial_activity !== 'standard' ? ` - ${row.financial_activity}` : ''}
                     </small>
                     {rawVisible && <small>Raw: {row.raw_description || row.description}</small>}
                   </div>
@@ -1092,6 +1096,21 @@ export default function StatementImportPage() {
                           <option value="expense">Expense</option>
                           <option value="income">Income</option>
                           <option value="transfer">Transfer</option>
+                        </select>
+                      </label>
+                      <label className="field-group">
+                        Activity
+                        <select
+                          onChange={(event) => updateRowLocal(row.id, 'financial_activity', event.target.value)}
+                          value={row.financial_activity || 'standard'}
+                        >
+                          <option value="standard">Standard</option>
+                          <option value="purchase">Purchase</option>
+                          <option value="payment">Card payment</option>
+                          <option value="refund">Refund</option>
+                          <option value="fee">Fee / interest</option>
+                          <option value="cash_advance">Cash advance</option>
+                          <option value="installment">Installment</option>
                         </select>
                       </label>
                       {row.transaction_type === 'transfer' ? (

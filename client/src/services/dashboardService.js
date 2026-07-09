@@ -1,9 +1,10 @@
 import { getAccounts } from './accountService.js';
 import { getTransactions } from './transactionService.js';
 import { calculateAccountBalances, getTransactionAccountName } from '../utils/balance.js';
+import { getReportIncomeAmount, getSpendingAmount } from '../utils/creditFacility.js';
 
 const assetTypes = new Set(['Cash', 'Bank', 'E-Wallet', 'Investment']);
-const debtTypes = new Set(['PayLater', 'Loan']);
+const debtTypes = new Set(['Credit Card', 'PayLater', 'Loan']);
 
 function startOfToday() {
   const date = new Date();
@@ -59,24 +60,16 @@ function isToday(dateString) {
   return dateString === new Date().toISOString().slice(0, 10);
 }
 
-function getExpenseAmount(transaction) {
-  if (transaction.transaction_type === 'transfer') {
-    return Math.abs(Number(transaction.transfer_fee || 0));
-  }
-
-  return transaction.transaction_type === 'expense' ? Math.abs(Number(transaction.amount || 0)) : 0;
-}
-
 function groupExpenseBy(transactions, getKey) {
   const grouped = new Map();
 
   transactions.forEach((transaction) => {
-    if (transaction.transaction_type !== 'expense') {
+    if (!getSpendingAmount(transaction)) {
       return;
     }
 
     const key = getKey(transaction) || 'Other';
-    grouped.set(key, (grouped.get(key) || 0) + getExpenseAmount(transaction));
+    grouped.set(key, (grouped.get(key) || 0) + getSpendingAmount(transaction));
   });
 
   return [...grouped.entries()]
@@ -107,11 +100,11 @@ export async function getDashboardData() {
 
   const todaySpending = transactions
     .filter((transaction) => isToday(transaction.transaction_date))
-    .reduce((sum, transaction) => sum + getExpenseAmount(transaction), 0);
+    .reduce((sum, transaction) => sum + getSpendingAmount(transaction), 0);
 
   const weekSpending = transactions
     .filter((transaction) => isOnOrAfter(transaction.transaction_date, week))
-    .reduce((sum, transaction) => sum + getExpenseAmount(transaction), 0);
+    .reduce((sum, transaction) => sum + getSpendingAmount(transaction), 0);
 
   const monthTransactions = transactions.filter((transaction) => isOnOrAfter(transaction.transaction_date, month));
   const lastMonthTransactions = transactions.filter((transaction) => (
@@ -119,18 +112,16 @@ export async function getDashboardData() {
   ));
 
   const monthSpending = monthTransactions
-    .reduce((sum, transaction) => sum + getExpenseAmount(transaction), 0);
+    .reduce((sum, transaction) => sum + getSpendingAmount(transaction), 0);
 
   const monthIncome = monthTransactions
-    .filter((transaction) => transaction.transaction_type === 'income')
-    .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+    .reduce((sum, transaction) => sum + getReportIncomeAmount(transaction), 0);
 
   const lastMonthSpending = lastMonthTransactions
-    .reduce((sum, transaction) => sum + getExpenseAmount(transaction), 0);
+    .reduce((sum, transaction) => sum + getSpendingAmount(transaction), 0);
 
   const lastMonthIncome = lastMonthTransactions
-    .filter((transaction) => transaction.transaction_type === 'income')
-    .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+    .reduce((sum, transaction) => sum + getReportIncomeAmount(transaction), 0);
 
   return {
     accounts: accountsWithBalances,

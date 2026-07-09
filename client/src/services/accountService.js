@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
+import { creditFacilityTypes } from '../utils/creditFacility.js';
 
 function requireSupabase() {
   if (!supabase) {
@@ -55,7 +56,10 @@ export async function getAccounts() {
 
 export async function createAccount(account) {
   const { client, userProfileId } = await getScopedQuery();
-  const balance = Number(account.balance || 0);
+  const enteredBalance = Number(account.balance || 0);
+  const balance = creditFacilityTypes.has(account.type)
+    ? -Math.abs(enteredBalance)
+    : enteredBalance;
   const sortOrder = await getNextAccountSortOrder({
     client,
     type: account.type,
@@ -71,7 +75,12 @@ export async function createAccount(account) {
       balance,
       opening_balance: balance,
       sort_order: sortOrder,
-      status: account.status || 'active'
+      status: account.status || 'active',
+      credit_limit: account.credit_limit ? Number(account.credit_limit) : null,
+      credit_alert_enabled: account.credit_alert_enabled !== false,
+      credit_alert_threshold: Number(account.credit_alert_threshold || 75),
+      billing_day: account.billing_day ? Number(account.billing_day) : null,
+      payment_due_day: account.payment_due_day ? Number(account.payment_due_day) : null
     })
     .select('*')
     .single();
@@ -97,7 +106,10 @@ export async function updateAccount(id, account) {
     throw existingError;
   }
 
-  const nextBalance = Number(account.balance || 0);
+  const enteredBalance = Number(account.balance || 0);
+  const nextBalance = creditFacilityTypes.has(account.type)
+    ? -Math.abs(enteredBalance)
+    : enteredBalance;
   const balanceChanged = Number(existing.balance || 0) !== nextBalance;
 
   const { data, error } = await client
@@ -106,8 +118,15 @@ export async function updateAccount(id, account) {
       name: account.name,
       type: account.type,
       balance: nextBalance,
-      opening_balance: Number(account.opening_balance ?? existing.opening_balance ?? 0),
+      opening_balance: creditFacilityTypes.has(account.type)
+        ? -Math.abs(Number(account.opening_balance ?? existing.opening_balance ?? 0))
+        : Number(account.opening_balance ?? existing.opening_balance ?? 0),
       status: account.status || 'active',
+      credit_limit: account.credit_limit ? Number(account.credit_limit) : null,
+      credit_alert_enabled: account.credit_alert_enabled !== false,
+      credit_alert_threshold: Number(account.credit_alert_threshold || 75),
+      billing_day: account.billing_day ? Number(account.billing_day) : null,
+      payment_due_day: account.payment_due_day ? Number(account.payment_due_day) : null,
       last_reconciled_at: balanceChanged ? new Date().toISOString() : existing.last_reconciled_at
     })
     .eq('id', id)

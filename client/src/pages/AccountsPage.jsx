@@ -10,8 +10,9 @@ import {
 } from '../services/accountService.js';
 import { getTransactions } from '../services/transactionService.js';
 import { calculateAccountBalances } from '../utils/balance.js';
+import { creditFacilityTypes } from '../utils/creditFacility.js';
 
-const accountTypes = ['Cash', 'Bank', 'E-Wallet', 'PayLater', 'Loan', 'Investment'];
+const accountTypes = ['Cash', 'Bank', 'E-Wallet', 'Credit Card', 'PayLater', 'Loan', 'Investment'];
 
 const emptyForm = {
   name: '',
@@ -20,7 +21,12 @@ const emptyForm = {
   calculated_balance: 0,
   opening_balance: 0,
   reconciliation_notes: '',
-  status: 'active'
+  status: 'active',
+  credit_limit: '',
+  credit_alert_enabled: true,
+  credit_alert_threshold: 75,
+  billing_day: '',
+  payment_due_day: ''
 };
 
 function FlatIcon({ name }) {
@@ -150,11 +156,20 @@ export default function AccountsPage() {
     setForm({
       name: account.name,
       type: account.type,
-      balance: account.reconciled_balance ?? account.balance,
+      balance: creditFacilityTypes.has(account.type)
+        ? Math.abs(Number(account.reconciled_balance ?? account.balance ?? 0))
+        : account.reconciled_balance ?? account.balance,
       calculated_balance: account.calculated_balance ?? account.balance,
-      opening_balance: account.opening_balance ?? 0,
+      opening_balance: creditFacilityTypes.has(account.type)
+        ? Math.abs(Number(account.opening_balance ?? 0))
+        : account.opening_balance ?? 0,
       reconciliation_notes: '',
-      status: account.status || 'active'
+      status: account.status || 'active',
+      credit_limit: account.credit_limit ?? '',
+      credit_alert_enabled: account.credit_alert_enabled !== false,
+      credit_alert_threshold: account.credit_alert_threshold ?? 75,
+      billing_day: account.billing_day ?? '',
+      payment_due_day: account.payment_due_day ?? ''
     });
 
     setEditingAccountId(account.id);
@@ -195,6 +210,8 @@ export default function AccountsPage() {
       setSaving(false);
     }
   }
+
+  const isCreditFacilityForm = creditFacilityTypes.has(form.type);
 
   async function handleDelete(account) {
     setPendingDeleteId('');
@@ -348,7 +365,7 @@ export default function AccountsPage() {
             </label>
 
             <label className="field-group">
-              Current / Reconciled Balance
+              {isCreditFacilityForm ? 'Current Amount Owed' : 'Current / Reconciled Balance'}
               <input
                 onChange={(event) => updateField('balance', event.target.value)}
                 placeholder="0"
@@ -358,7 +375,7 @@ export default function AccountsPage() {
             </label>
 
             <label className="field-group">
-              Opening Balance
+              {isCreditFacilityForm ? 'Opening Amount Owed' : 'Opening Balance'}
               <input
                 onChange={(event) => updateField('opening_balance', event.target.value)}
                 placeholder="0"
@@ -366,6 +383,65 @@ export default function AccountsPage() {
                 value={form.opening_balance}
               />
             </label>
+
+            {isCreditFacilityForm && (
+              <>
+                <label className="field-group">
+                  Credit Limit
+                  <input
+                    min="0"
+                    onChange={(event) => updateField('credit_limit', event.target.value)}
+                    placeholder="10000000"
+                    type="number"
+                    value={form.credit_limit}
+                  />
+                </label>
+
+                <label className="field-group">
+                  Alert Threshold (%)
+                  <input
+                    max="100"
+                    min="1"
+                    onChange={(event) => updateField('credit_alert_threshold', event.target.value)}
+                    type="number"
+                    value={form.credit_alert_threshold}
+                  />
+                </label>
+
+                <label className="field-group">
+                  Billing Day
+                  <input
+                    max="31"
+                    min="1"
+                    onChange={(event) => updateField('billing_day', event.target.value)}
+                    placeholder="20"
+                    type="number"
+                    value={form.billing_day}
+                  />
+                </label>
+
+                <label className="field-group">
+                  Payment Due Day
+                  <input
+                    max="31"
+                    min="1"
+                    onChange={(event) => updateField('payment_due_day', event.target.value)}
+                    placeholder="10"
+                    type="number"
+                    value={form.payment_due_day}
+                  />
+                </label>
+
+                <label className="checkbox-field span-2">
+                  <input
+                    checked={form.credit_alert_enabled}
+                    onChange={(event) => updateField('credit_alert_enabled', event.target.checked)}
+                    type="checkbox"
+                  />
+                  Alert me when utilization crosses the threshold
+                </label>
+              </>
+            )}
 
             <label className="field-group">
               Status

@@ -39,7 +39,8 @@ function normalizeTransaction(transaction, userProfileId) {
     notes: transaction.notes || null,
     transfer_purpose: transaction.transfer_purpose || null,
     transfer_fee: transactionType === 'transfer' ? Number(transaction.transfer_fee || 0) : 0,
-    money_direction: transaction.money_direction || null
+    money_direction: transaction.money_direction || null,
+    financial_activity: transaction.financial_activity || 'standard'
   };
 }
 

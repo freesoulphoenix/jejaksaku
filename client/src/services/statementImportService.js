@@ -390,6 +390,7 @@ function normalizeImportedRow(row, userProfileId, statementImportId) {
     transfer_purpose: row.transfer_purpose || null,
     transfer_fee: Number(row.transfer_fee || 0),
     notes: row.notes || null,
+    financial_activity: row.financial_activity || 'standard',
     import_status: row.import_status || 'pending'
   };
 }
@@ -482,6 +483,7 @@ export async function updateImportedTransaction(id, row) {
       transaction_type: row.transaction_type
     }),
     notes: row.notes || null,
+    financial_activity: row.financial_activity || 'standard',
     import_status: row.import_status || 'pending'
   };
   const { data, error } = await client
