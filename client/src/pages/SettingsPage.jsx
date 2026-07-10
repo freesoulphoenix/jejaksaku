@@ -17,7 +17,32 @@ const emptyProjectTagForm = {
   name: ''
 };
 
-const appVersion = '0.1.0';
+const appVersion = '1.0.0';
+
+const versionHistory = [
+  {
+    version: 'v1',
+    title: 'Credit facilities',
+    features: [
+      'Added Credit Card and PayLater account support.',
+      'Credit card and PayLater purchases count as spending when the purchase happens.',
+      'Repayments are treated as transfers, so paying the bill does not double-count spending.',
+      'Added credit limit, utilization, available credit, and alert threshold tracking.',
+      'Statement import now classifies purchases, payments, refunds, fees, installments, and cash advances.'
+    ]
+  },
+  {
+    version: 'v0',
+    title: 'Original Jejak Saku',
+    features: [
+      'Expense, income, and transfer records.',
+      'Cash, bank, e-wallet, loan, investment, and PayLater account tracking.',
+      'Receipt history with OCR-supported transaction records.',
+      'Bank and e-wallet statement import with matching review.',
+      'Reports, analysis, due reminders, categories, and project tags.'
+    ]
+  }
+];
 
 function FlatIcon({ name }) {
   const commonProps = {
@@ -860,6 +885,22 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <h2>About</h2>
           </div>
           <p className="muted-copy">Jejak Saku is for expense records, receipt history, reports, and analysis.</p>
+          <div className="version-history">
+            <h3>Version history</h3>
+            {versionHistory.map((release) => (
+              <div className="version-history-entry" key={release.version}>
+                <div>
+                  <strong>{release.version}</strong>
+                  <span>{release.title}</span>
+                </div>
+                <ul>
+                  {release.features.map((feature) => (
+                    <li key={feature}>{feature}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </article>
 
         <article className="panel">

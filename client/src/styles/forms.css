@@ -378,6 +378,54 @@ textarea:focus {
   margin: 0;
 }
 
+.version-history {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.version-history h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.version-history-entry {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.version-history-entry div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.version-history-entry strong {
+  color: var(--color-primary);
+}
+
+.version-history-entry span {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.version-history-entry ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--color-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .category-subpage {
   gap: 12px;
 }
