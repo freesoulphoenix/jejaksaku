@@ -168,6 +168,7 @@ export default function StatementImportPage() {
   const defaultAccount = useMemo(() => (
     accounts.find((account) => account.id === defaultAccountId) || null
   ), [accounts, defaultAccountId]);
+  const showReviewQueue = Boolean(activeImport && !file);
 
   const sortedImports = useMemo(() => (
     [...imports].sort((first, second) => {
@@ -960,7 +961,7 @@ export default function StatementImportPage() {
         </form>
       </section>
 
-      {activeImport && (
+      {showReviewQueue && (
         <article className={`panel statement-review-panel${reviewCollapsed ? ' is-collapsed' : ''}`}>
           <div className="panel-header">
             <div>
