@@ -965,17 +965,17 @@ export default function StatementImportPage() {
         <article className={`panel statement-review-panel${reviewCollapsed ? ' is-collapsed' : ''}`}>
           <div className="panel-header">
             <div>
-              <h2>Review Queue</h2>
+              <h2>Statement Review</h2>
               <p className="muted-copy">{activeImport.file_name}</p>
             </div>
             <div className="review-queue-header-actions">
               <span className="summary-pill">{selectedRows.length} selected</span>
               <button
                 aria-expanded={!reviewCollapsed}
-                aria-label={reviewCollapsed ? 'Expand review queue' : 'Collapse review queue'}
+                aria-label={reviewCollapsed ? 'Expand statement review' : 'Collapse statement review'}
                 className="icon-button review-queue-toggle"
                 onClick={() => setReviewCollapsed((currentValue) => !currentValue)}
-                title={reviewCollapsed ? 'Expand review queue' : 'Collapse review queue'}
+                title={reviewCollapsed ? 'Expand statement review' : 'Collapse statement review'}
                 type="button"
               >
                 <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
@@ -1270,7 +1270,7 @@ export default function StatementImportPage() {
           ) : filteredRows.length === 0 ? (
             <p className="muted-copy">No rows match this filter.</p>
           ) : reviewFilter !== 'linked' && activeRows.length === 0 && (
-            <p className="muted-copy">No active rows left in this review queue.</p>
+            <p className="muted-copy">No active rows left in this statement review.</p>
           )}
 
           {processedRows.length > 0 && (
@@ -1350,7 +1350,7 @@ export default function StatementImportPage() {
           <section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="match-title">
             <div className="modal-header">
               <div>
-                <p className="section-kicker">Possible Match Found</p>
+                <p className="section-kicker">Possible Match</p>
                 <h2 id="match-title">{pendingMatch.match.title}</h2>
               </div>
               <button className="icon-button" aria-label="Close match dialog" onClick={() => setPendingMatch(null)}>x</button>
@@ -1370,10 +1370,6 @@ export default function StatementImportPage() {
                 {pendingMatch.match.message}
               </span>
             </div>
-
-            <p className="muted-copy">
-              This is only a warning. No entry has been changed. Review the match and choose what the app should do.
-            </p>
 
             <div className="modal-actions">
               {pendingMatch.match.type === 'existing_transaction' ? (
