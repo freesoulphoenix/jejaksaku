@@ -884,31 +884,26 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <span className="settings-flat-icon"><FlatIcon name="info" /></span>
             <h2>About</h2>
           </div>
-          <p className="muted-copy">Jejak Saku is for expense records, receipt history, reports, and analysis.</p>
+          <p className="muted-copy">Jejak Saku is a smart journal for expense records, receipt history, reports, and analysis.</p>
+          <p className="about-version-line">
+            <strong>Version:</strong> Jejak Saku {appVersion}
+          </p>
           <div className="version-history">
             <h3>Version history</h3>
             {versionHistory.map((release) => (
-              <div className="version-history-entry" key={release.version}>
-                <div>
+              <details className="version-history-entry" key={release.version}>
+                <summary>
                   <strong>{release.version}</strong>
                   <span>{release.title}</span>
-                </div>
+                </summary>
                 <ul>
                   {release.features.map((feature) => (
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
-              </div>
+              </details>
             ))}
           </div>
-        </article>
-
-        <article className="panel">
-          <div className="settings-panel-title">
-            <span className="settings-flat-icon"><FlatIcon name="version" /></span>
-            <h2>Version</h2>
-          </div>
-          <p className="muted-copy">Jejak Saku {appVersion}</p>
         </article>
 
         <article className="panel settings-panel-wide">

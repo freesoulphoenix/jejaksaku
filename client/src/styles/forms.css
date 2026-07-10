@@ -386,10 +386,20 @@ textarea:focus {
   margin: 0;
 }
 
+.about-version-line {
+  margin: 18px 0 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.about-version-line strong {
+  color: var(--color-text);
+}
+
 .version-history {
   display: grid;
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 22px;
 }
 
 .version-history h3 {
@@ -407,11 +417,29 @@ textarea:focus {
   background: #f8fafc;
 }
 
-.version-history-entry div {
+.version-history-entry summary {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  cursor: pointer;
+  list-style: none;
+}
+
+.version-history-entry summary::-webkit-details-marker {
+  display: none;
+}
+
+.version-history-entry summary::after {
+  content: '+';
+  margin-left: auto;
+  color: var(--color-primary);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.version-history-entry[open] summary::after {
+  content: '-';
 }
 
 .version-history-entry strong {
