@@ -779,7 +779,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       </section>
 
       <section className="settings-grid">
-        <article className="panel">
+        <article className="panel settings-panel-wide">
           <div className="settings-panel-title">
             <span className="settings-flat-icon"><FlatIcon name="user" /></span>
             <h2>Account</h2>
