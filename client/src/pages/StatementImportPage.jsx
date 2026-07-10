@@ -132,6 +132,7 @@ export default function StatementImportPage() {
   const [categories, setCategories] = useState([]);
   const [projectTags, setProjectTags] = useState([]);
   const [file, setFile] = useState(null);
+  const [draggingFile, setDraggingFile] = useState(false);
   const [sourceName, setSourceName] = useState('');
   const [defaultAccountId, setDefaultAccountId] = useState('');
   const [importSort, setImportSort] = useState('latest');
@@ -262,9 +263,7 @@ export default function StatementImportPage() {
     });
   }, [reviewFilter, reviewSearch]);
 
-  function handleFileChange(event) {
-    const selectedFile = event.target.files?.[0] || null;
-
+  function selectStatementFile(selectedFile, resetInput) {
     if (!selectedFile) {
       setFile(null);
       return;
@@ -275,12 +274,38 @@ export default function StatementImportPage() {
     if (!allowedExtensions.includes(fileType)) {
       setError('Only PDF, CSV, and XLSX statement files are supported.');
       setFile(null);
-      event.target.value = '';
+      if (resetInput) {
+        resetInput();
+      }
       return;
     }
 
     setError('');
     setFile(selectedFile);
+  }
+
+  function handleFileChange(event) {
+    selectStatementFile(event.target.files?.[0] || null, () => {
+      event.target.value = '';
+    });
+  }
+
+  function handleFileDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDraggingFile(true);
+  }
+
+  function handleFileDragLeave(event) {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setDraggingFile(false);
+    }
+  }
+
+  function handleFileDrop(event) {
+    event.preventDefault();
+    setDraggingFile(false);
+    selectStatementFile(event.dataTransfer.files?.[0] || null);
   }
 
   function updateRowLocal(rowId, field, value) {
@@ -902,9 +927,14 @@ export default function StatementImportPage() {
             </select>
           </label>
 
-          <label className="upload-dropzone span-2">
-            <strong>{file ? file.name : 'Choose statement file'}</strong>
-            <span>PDF, CSV, XLS, or XLSX</span>
+          <label
+            className={`upload-dropzone span-2${draggingFile ? ' is-dragging' : ''}`}
+            onDragLeave={handleFileDragLeave}
+            onDragOver={handleFileDragOver}
+            onDrop={handleFileDrop}
+          >
+            <strong>{file ? file.name : 'Choose or drop statement file'}</strong>
+            <span>Click to browse, or drag and drop PDF, CSV, XLS, or XLSX</span>
             <input
               accept=".pdf,.csv,.xls,.xlsx,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={handleFileChange}

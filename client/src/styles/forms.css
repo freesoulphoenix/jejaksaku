@@ -198,6 +198,14 @@ textarea:focus {
   color: var(--color-primary);
   background: var(--color-primary-soft);
   text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.upload-dropzone.is-dragging {
+  border-color: var(--color-primary);
+  background: rgba(45, 140, 255, 0.14);
+  box-shadow: 0 16px 32px rgba(45, 140, 255, 0.16);
+  transform: translateY(-1px);
 }
 
 .upload-dropzone input {
