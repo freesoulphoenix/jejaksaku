@@ -133,6 +133,7 @@ export default function StatementImportPage() {
   const [projectTags, setProjectTags] = useState([]);
   const [file, setFile] = useState(null);
   const [draggingFile, setDraggingFile] = useState(false);
+  const [fileSelectionMissing, setFileSelectionMissing] = useState(false);
   const [sourceName, setSourceName] = useState('');
   const [defaultAccountId, setDefaultAccountId] = useState('');
   const [importSort, setImportSort] = useState('latest');
@@ -281,6 +282,7 @@ export default function StatementImportPage() {
     }
 
     setError('');
+    setFileSelectionMissing(false);
     setFile(selectedFile);
   }
 
@@ -550,7 +552,8 @@ export default function StatementImportPage() {
     event.preventDefault();
 
     if (!file) {
-      setError('Choose a statement file first.');
+      setError('');
+      setFileSelectionMissing(true);
       return;
     }
 
@@ -935,7 +938,12 @@ export default function StatementImportPage() {
           >
             <strong>{file ? file.name : 'Choose or drop statement file'}</strong>
             {!file && <span>Click to browse, or drag and drop PDF, CSV, XLS, or XLSX</span>}
-            {!file && <span className="upload-dropzone-button">Choose File</span>}
+            {!file && (
+              <span className="upload-dropzone-controls">
+                <span className="upload-dropzone-button">Choose File</span>
+                {fileSelectionMissing && <span className="upload-file-status">no file selected</span>}
+              </span>
+            )}
             <input
               aria-label="Choose statement file"
               accept=".pdf,.csv,.xls,.xlsx,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
