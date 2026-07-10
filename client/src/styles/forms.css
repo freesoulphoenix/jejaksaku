@@ -234,6 +234,7 @@ textarea:focus {
   align-items: center;
   min-height: 34px;
   margin-top: 12px;
+  padding: 4px;
   overflow: hidden;
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 10px;
@@ -245,22 +246,21 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  align-self: stretch;
-  min-height: 34px;
-  padding: 0 14px;
-  border-right: 1px solid #e5e7eb;
-  border-radius: 0;
+  min-height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
   color: var(--color-text) !important;
   background: #f3f4f6;
   box-shadow: none;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 400;
 }
 
 .upload-file-status {
   color: var(--color-muted);
-  padding: 0 14px;
-  font-size: 0.78rem;
+  padding: 0 10px;
+  font-size: 0.85rem;
 }
 
 .retention-notice {
