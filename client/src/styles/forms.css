@@ -234,7 +234,7 @@ textarea:focus {
   align-items: center;
   min-height: 34px;
   margin-top: 12px;
-  padding: 4px;
+  padding: 10px;
   overflow: hidden;
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 10px;
