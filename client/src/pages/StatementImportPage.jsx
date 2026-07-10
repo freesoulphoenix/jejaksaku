@@ -934,8 +934,10 @@ export default function StatementImportPage() {
             onDrop={handleFileDrop}
           >
             <strong>{file ? file.name : 'Choose or drop statement file'}</strong>
-            <span>Click to browse, or drag and drop PDF, CSV, XLS, or XLSX</span>
+            {!file && <span>Click to browse, or drag and drop PDF, CSV, XLS, or XLSX</span>}
+            {!file && <span className="upload-dropzone-button">Choose File</span>}
             <input
+              aria-label="Choose statement file"
               accept=".pdf,.csv,.xls,.xlsx,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={handleFileChange}
               type="file"
