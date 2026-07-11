@@ -1143,7 +1143,7 @@ export default function StatementImportPage() {
                         Activity
                         <select
                           onChange={(event) => updateRowLocal(row.id, 'financial_activity', event.target.value)}
-                          value={row.financial_activity === 'purchase' ? 'standard' : row.financial_activity || 'standard'}
+                          value={row.financial_activity || 'standard'}
                         >
                           <option value="standard">Standard Purchase</option>
                           <option value="payment">Card payment</option>

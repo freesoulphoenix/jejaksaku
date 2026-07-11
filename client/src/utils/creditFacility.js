@@ -83,7 +83,7 @@ export function classifyCreditStatementRow(row, sourceAccount) {
 
   return {
     ...row,
-    financial_activity: 'purchase',
+    financial_activity: 'standard',
     transaction_type: 'expense'
   };
 }

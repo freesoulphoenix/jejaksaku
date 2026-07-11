@@ -177,7 +177,7 @@ export default function AddTransactionModal({
             Activity
             <select
               onChange={(event) => updateField('financial_activity', event.target.value)}
-              value={form.financial_activity === 'purchase' ? 'standard' : form.financial_activity}
+              value={form.financial_activity}
             >
               <option value="standard">Standard Purchase</option>
               <option value="payment">Credit payment</option>
