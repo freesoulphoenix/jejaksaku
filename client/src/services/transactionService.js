@@ -140,32 +140,47 @@ async function applyAccountBalanceDeltas(client, userProfileId, deltas) {
 
 export async function getTransactions() {
   const { client, userProfileId } = await getScopedQuery();
-  const { data, error } = await client
-    .from('transactions')
-    .select(`
-      *,
-      accounts:account_id (id, name, type),
-      from_account:from_account_id (id, name, type),
-      to_account:to_account_id (id, name, type),
-      categories:category_id (id, name, type),
-      project_tags:project_tag_id (id, name),
-      receipt:receipt_id (id, merchant_name, receipt_date),
-      imported_transaction:imported_transaction_id (
-        id,
-        import_status,
-        transaction_date,
-        statement_import:statement_import_id (id, file_name, bank_name)
-      )
-    `)
-    .eq('user_profile_id', userProfileId)
-    .order('transaction_date', { ascending: false })
-    .order('created_at', { ascending: false });
+  const pageSize = 1000;
+  const rows = [];
+  let from = 0;
 
-  if (error) {
-    throw error;
+  while (true) {
+    const { data, error } = await client
+      .from('transactions')
+      .select(`
+        *,
+        accounts:account_id (id, name, type),
+        from_account:from_account_id (id, name, type),
+        to_account:to_account_id (id, name, type),
+        categories:category_id (id, name, type),
+        project_tags:project_tag_id (id, name),
+        receipt:receipt_id (id, merchant_name, receipt_date),
+        imported_transaction:imported_transaction_id (
+          id,
+          import_status,
+          transaction_date,
+          statement_import:statement_import_id (id, file_name, bank_name)
+        )
+      `)
+      .eq('user_profile_id', userProfileId)
+      .order('transaction_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    rows.push(...(data || []));
+
+    if (!data || data.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
   }
 
-  return data;
+  return rows;
 }
 
 export async function unlinkTransactionFromStatement(id) {
