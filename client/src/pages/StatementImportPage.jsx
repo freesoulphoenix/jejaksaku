@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import BoundedDatePicker from '../components/BoundedDatePicker.jsx';
 import { getAccounts } from '../services/accountService.js';
@@ -132,6 +132,8 @@ export default function StatementImportPage() {
   const [categories, setCategories] = useState([]);
   const [projectTags, setProjectTags] = useState([]);
   const [file, setFile] = useState(null);
+  const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
+  const [pendingSourceAccountId, setPendingSourceAccountId] = useState('');
   const [draggingFile, setDraggingFile] = useState(false);
   const [fileSelectionMissing, setFileSelectionMissing] = useState(false);
   const [sourceName, setSourceName] = useState('');
@@ -155,6 +157,7 @@ export default function StatementImportPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const fileInputRef = useRef(null);
   const allCategoryOptions = useMemo(() => getCategoryOptions(categories, null), [categories]);
   const getRowCategoryOptions = (row) => (
     getCategoryOptions(categories, row.transaction_type === 'transfer' ? null : row.transaction_type)
@@ -284,6 +287,8 @@ export default function StatementImportPage() {
 
     setError('');
     setFileSelectionMissing(false);
+    setIsSourceModalOpen(false);
+    setPendingSourceAccountId('');
     setFile(selectedFile);
   }
 
@@ -309,6 +314,36 @@ export default function StatementImportPage() {
     event.preventDefault();
     setDraggingFile(false);
     selectStatementFile(event.dataTransfer.files?.[0] || null);
+  }
+
+  function clearSelectedStatementFile() {
+    setFile(null);
+    setIsSourceModalOpen(false);
+    setPendingSourceAccountId('');
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }
+
+  function closeSourceAccountModal() {
+    setIsSourceModalOpen(false);
+    setPendingSourceAccountId('');
+    setError('');
+  }
+
+  function handleUploadReview(event) {
+    event.preventDefault();
+
+    if (!file) {
+      setError('');
+      setFileSelectionMissing(true);
+      return;
+    }
+
+    setError('');
+    setPendingSourceAccountId('');
+    setIsSourceModalOpen(true);
   }
 
   function updateRowLocal(rowId, field, value) {
@@ -459,8 +494,10 @@ export default function StatementImportPage() {
     };
   }
 
-  function getRowsWithSourceAccount(rows, importSourceName = sourceName) {
-    const sourceAccount = sourceAccounts.find((account) => account.name === importSourceName);
+  function getRowsWithSourceAccount(rows, importSource = sourceName) {
+    const sourceAccount = typeof importSource === 'object'
+      ? importSource
+      : sourceAccounts.find((account) => account.name === importSource);
     const fallbackAccount = sourceAccount || defaultAccount;
 
     return rows.map((row) => {
@@ -549,20 +586,14 @@ export default function StatementImportPage() {
     }
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-
-    if (!file) {
-      setError('');
-      setFileSelectionMissing(true);
-      return;
-    }
+  async function processStatementFile(statementFile, sourceAccount) {
+    const importSourceName = sourceAccount.name;
 
     setError('');
     setSaving(true);
 
     try {
-      const duplicate = await findDuplicateStatementImport(file, sourceName);
+      const duplicate = await findDuplicateStatementImport(statementFile, importSourceName);
 
       if (duplicate.existing) {
         const uploadedAt = duplicate.existing.created_at
@@ -573,25 +604,24 @@ export default function StatementImportPage() {
         );
 
         if (!shouldContinue) {
-          setSaving(false);
+          closeSourceAccountModal();
           return;
         }
       }
 
-      const rows = await parseStatementFile(file, sourceName);
+      const rows = await parseStatementFile(statementFile, importSourceName);
 
       if (rows.length === 0) {
         throw new Error('No transaction rows were found in this statement. Check that the file contains dated debit/credit rows.');
       }
 
-      const statementImport = await createStatementImport(file, sourceName, {
+      const statementImport = await createStatementImport(statementFile, importSourceName, {
         fileHash: duplicate.fileHash
       });
-      const rowsWithSourceAccount = getRowsWithSourceAccount(rows);
+      const rowsWithSourceAccount = getRowsWithSourceAccount(rows, sourceAccount);
       await saveImportedTransactions(statementImport.id, rowsWithSourceAccount);
 
-      setFile(null);
-      event.target.reset();
+      clearSelectedStatementFile();
       setActiveImport(statementImport);
       setReviewCollapsed(false);
       await loadReviewRows(statementImport);
@@ -601,6 +631,18 @@ export default function StatementImportPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleConfirmSourceAccount() {
+    const sourceAccount = sourceAccounts.find((account) => account.id === pendingSourceAccountId);
+
+    if (!file || !sourceAccount) {
+      setError('Select the source account for this statement.');
+      return;
+    }
+
+    setSourceName(sourceAccount.name);
+    await processStatementFile(file, sourceAccount);
   }
 
   async function handleDeleteImportFile(item) {
@@ -921,16 +963,7 @@ export default function StatementImportPage() {
           <span>Source files and unimported review rows are removed after 90 days. Transactions already imported and report data remain available.</span>
         </div>
 
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <label className="field-group">
-            Source account
-            <select onChange={(event) => setSourceName(event.target.value)} value={sourceName}>
-              {sourceOptions.map((source) => (
-                <option key={source} value={source}>{source}</option>
-              ))}
-            </select>
-          </label>
-
+        <form className="form-grid" onSubmit={handleUploadReview}>
           <label
             className={`upload-dropzone span-2${draggingFile ? ' is-dragging' : ''}`}
             onDragLeave={handleFileDragLeave}
@@ -949,13 +982,14 @@ export default function StatementImportPage() {
               aria-label="Choose statement file"
               accept=".pdf,.csv,.xls,.xlsx,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={handleFileChange}
+              ref={fileInputRef}
               type="file"
             />
           </label>
 
           <div className="modal-actions span-2">
             <button className="primary-button" disabled={saving} type="submit">
-              {saving ? 'Parsing...' : 'Upload and Review'}
+              Upload and Review
             </button>
           </div>
         </form>
@@ -1343,6 +1377,71 @@ export default function StatementImportPage() {
           </div>
         )}
       </article>
+
+      {file && isSourceModalOpen && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="statement-source-title">
+            <div className="modal-header">
+              <div>
+                <p className="section-kicker">Statement source</p>
+                <h2 id="statement-source-title">Select source account</h2>
+              </div>
+              <button
+                aria-label="Close source account dialog"
+                className="icon-button"
+                disabled={saving}
+                onClick={closeSourceAccountModal}
+                type="button"
+              >
+                x
+              </button>
+            </div>
+
+            <p className="muted-copy statement-source-file-name">{file.name}</p>
+
+            {error && <p className="form-message error">{error}</p>}
+
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleConfirmSourceAccount();
+              }}
+            >
+              <label className="field-group">
+                Source account
+                <select
+                  autoFocus
+                  disabled={saving}
+                  onChange={(event) => setPendingSourceAccountId(event.target.value)}
+                  required
+                  value={pendingSourceAccountId}
+                >
+                  <option value="">Select the account for this statement</option>
+                  {sourceAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>{account.name} ({account.type})</option>
+                  ))}
+                </select>
+                <small>Imported rows will be parsed and assigned using this account.</small>
+              </label>
+
+              {sourceAccounts.length === 0 && (
+                <p className="form-message error">Add a bank, e-wallet, credit card, or PayLater account before importing a statement.</p>
+              )}
+
+              <div className="modal-actions statement-source-actions">
+                <button className="secondary-button" disabled={saving} onClick={closeSourceAccountModal} type="button">Cancel</button>
+                <button
+                  className="primary-button"
+                  disabled={saving || !pendingSourceAccountId}
+                  type="submit"
+                >
+                  {saving ? 'Parsing...' : 'Continue and parse'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       {pendingMatch && (
         <div className="modal-backdrop" role="presentation">

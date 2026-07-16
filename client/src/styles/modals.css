@@ -30,6 +30,27 @@
   font-size: 1.4rem;
 }
 
+.statement-source-file-name {
+  margin: -4px 0 18px;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  border-radius: 12px;
+  background: var(--color-surface-soft);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.modal-panel .field-group small {
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.statement-source-actions {
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
 .review-detail-list {
   display: grid;
   gap: 10px;
