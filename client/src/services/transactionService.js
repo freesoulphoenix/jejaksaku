@@ -323,3 +323,92 @@ export async function deleteTransaction(id) {
 
   await applyAccountBalanceDeltas(client, userProfileId, getBalanceDeltas(existing, -1));
 }
+
+export async function updateTransactions(transactions = [], changes = {}) {
+  const category = changes.category_id
+    ? await (async () => {
+      const { client, userProfileId } = await getScopedQuery();
+      const { data, error } = await client
+        .from('categories')
+        .select('id, type')
+        .eq('id', changes.category_id)
+        .eq('user_profile_id', userProfileId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    })()
+    : null;
+
+  const nextTransactions = transactions.map((transaction) => {
+    const isTransfer = transaction.transaction_type === 'transfer';
+    const nextTransaction = {
+      ...transaction,
+      ...(Object.hasOwn(changes, 'project_tag_id')
+        ? { project_tag_id: changes.project_tag_id }
+        : {}),
+      ...(Object.hasOwn(changes, 'category_id') && !isTransfer
+        ? { category_id: changes.category_id }
+        : {})
+    };
+
+    if (Object.hasOwn(changes, 'account_id')) {
+      if (isTransfer) {
+        nextTransaction.from_account_id = changes.account_id;
+        nextTransaction.account_id = changes.account_id;
+      } else {
+        nextTransaction.account_id = changes.account_id;
+      }
+    }
+
+    if (category && !isTransfer && category.type !== transaction.transaction_type) {
+      throw new Error('The selected category must match the type of every selected expense or income activity.');
+    }
+
+    validateTransaction(normalizeTransaction(nextTransaction, transaction.user_profile_id));
+    return nextTransaction;
+  });
+
+  for (const transaction of nextTransactions) {
+    await updateTransaction(transaction.id, transaction);
+  }
+}
+
+export async function deleteTransactions(ids = []) {
+  const uniqueIds = [...new Set(ids)].filter(Boolean);
+
+  if (uniqueIds.length === 0) {
+    return;
+  }
+
+  const { client, userProfileId } = await getScopedQuery();
+  const { data: existing, error: existingError } = await client
+    .from('transactions')
+    .select('*')
+    .eq('user_profile_id', userProfileId)
+    .in('id', uniqueIds);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if ((existing || []).length !== uniqueIds.length) {
+    throw new Error('One or more selected activities no longer exist. Refresh and try again.');
+  }
+
+  const { error } = await client
+    .from('transactions')
+    .delete()
+    .eq('user_profile_id', userProfileId)
+    .in('id', uniqueIds);
+
+  if (error) {
+    throw error;
+  }
+
+  const deltas = new Map();
+  existing.forEach((transaction) => {
+    mergeDeltas(deltas, getBalanceDeltas(transaction, -1));
+  });
+  await applyAccountBalanceDeltas(client, userProfileId, deltas);
+}

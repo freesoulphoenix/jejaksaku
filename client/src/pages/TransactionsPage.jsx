@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import AddTransactionModal from '../components/AddTransactionModal.jsx';
+import BulkEditActivitiesModal from '../components/BulkEditActivitiesModal.jsx';
 import TransactionList from '../components/TransactionList.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
@@ -8,10 +9,12 @@ import { getProjectTags } from '../services/projectTagService.js';
 import { getCurrentUserProfile } from '../services/userProfileService.js';
 import {
   createTransaction,
+  deleteTransactions,
   deleteTransaction,
   getTransactions,
   unlinkTransactionFromStatement,
-  updateTransaction
+  updateTransaction,
+  updateTransactions
 } from '../services/transactionService.js';
 import {
   findMatchingUnpaidDueForTransaction,
@@ -64,6 +67,10 @@ export default function TransactionsPage({ onNavigate }) {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [pendingDeleteId, setPendingDeleteId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const searchInputRef = useRef(null);
@@ -167,6 +174,38 @@ export default function TransactionsPage({ onNavigate }) {
     setIsModalOpen(true);
   }
 
+  function toggleSelectionMode() {
+    setPendingDeleteId('');
+
+    if (selectionMode) {
+      setSelectedIds([]);
+      setSelectionMode(false);
+      return;
+    }
+
+    setSelectionMode(true);
+  }
+
+  function toggleTransactionSelection(transactionId) {
+    setSelectedIds((currentIds) => (
+      currentIds.includes(transactionId)
+        ? currentIds.filter((id) => id !== transactionId)
+        : [...currentIds, transactionId]
+    ));
+  }
+
+  function toggleSelectAllVisible() {
+    const visibleIds = filteredTransactions.map((transaction) => transaction.id);
+    const allVisibleSelected = visibleIds.length > 0
+      && visibleIds.every((id) => selectedIds.includes(id));
+
+    setSelectedIds((currentIds) => (
+      allVisibleSelected
+        ? currentIds.filter((id) => !visibleIds.includes(id))
+        : [...new Set([...currentIds, ...visibleIds])]
+    ));
+  }
+
   function openEditModal(transaction) {
     setEditingTransaction(transaction);
     setPendingDeleteId('');
@@ -216,6 +255,39 @@ export default function TransactionsPage({ onNavigate }) {
     }
   }
 
+  async function handleBulkDelete() {
+    if (selectedIds.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Delete ${selectedIds.length} selected activit${selectedIds.length === 1 ? 'y' : 'ies'}?`
+    );
+
+    if (!confirmed) return;
+
+    setError('');
+    setBulkSaving(true);
+
+    try {
+      await deleteTransactions(selectedIds);
+      setSelectedIds([]);
+      setSelectionMode(false);
+      await loadPageData();
+    } catch (err) {
+      setError(err.message || 'Unable to delete selected activities.');
+      await loadPageData(true);
+    } finally {
+      setBulkSaving(false);
+    }
+  }
+
+  async function handleBulkUpdate(changes) {
+    const selectedTransactions = transactions.filter((transaction) => selectedIds.includes(transaction.id));
+    await updateTransactions(selectedTransactions, changes);
+    setSelectedIds([]);
+    setSelectionMode(false);
+    await loadPageData();
+  }
+
   async function handleUnlinkStatement(transaction) {
     await unlinkTransactionFromStatement(transaction.id);
     const nextTransactions = await getTransactions();
@@ -240,14 +312,23 @@ export default function TransactionsPage({ onNavigate }) {
           <h1>Activity</h1>
         </div>
 
-        <button
-          aria-label="Add transaction"
-          className="category-page-add-button activity-page-add-button"
-          onClick={openCreateModal}
-          type="button"
-        >
-          <FlatIcon name="plus" />
-        </button>
+        <div className="activity-page-heading-actions">
+          <button
+            className="secondary-button small activity-select-mode-button"
+            onClick={toggleSelectionMode}
+            type="button"
+          >
+            {selectionMode ? 'Done' : 'Select'}
+          </button>
+          <button
+            aria-label="Add transaction"
+            className="category-page-add-button activity-page-add-button"
+            onClick={openCreateModal}
+            type="button"
+          >
+            <FlatIcon name="plus" />
+          </button>
+        </div>
       </section>
 
       {error && <p className="form-message error">{error}</p>}
@@ -293,6 +374,35 @@ export default function TransactionsPage({ onNavigate }) {
       </section>
 
       <article className="panel activity-list-panel">
+        {selectionMode && (
+          <div className="activity-selection-toolbar">
+            <button className="text-button" onClick={toggleSelectAllVisible} type="button">
+              {filteredTransactions.length > 0
+                && filteredTransactions.every((transaction) => selectedIds.includes(transaction.id))
+                ? 'Deselect visible'
+                : 'Select all visible'}
+            </button>
+            <span>{selectedIds.length} selected</span>
+            <div className="activity-selection-actions">
+              <button
+                className="secondary-button small"
+                disabled={selectedIds.length === 0 || bulkSaving}
+                onClick={() => setIsBulkEditOpen(true)}
+                type="button"
+              >
+                Edit
+              </button>
+              <button
+                className="secondary-button danger-button small"
+                disabled={selectedIds.length === 0 || bulkSaving}
+                onClick={handleBulkDelete}
+                type="button"
+              >
+                {bulkSaving ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        )}
         {loading ? (
           <p className="muted-copy activity-empty-copy">Loading transactions...</p>
         ) : (
@@ -300,12 +410,15 @@ export default function TransactionsPage({ onNavigate }) {
             activeDeleteId={pendingDeleteId}
             onDelete={handleDelete}
             onEdit={openEditModal}
+            onToggleSelection={toggleTransactionSelection}
             onToggleDelete={(transactionId) => {
               setPendingDeleteId((currentId) => (
                 currentId === transactionId ? '' : transactionId
               ));
             }}
             transactions={filteredTransactions}
+            selectedIds={selectedIds}
+            selectionMode={selectionMode}
             variant="activity"
           />
         )}
@@ -325,6 +438,17 @@ export default function TransactionsPage({ onNavigate }) {
           onUnlinkStatement={handleUnlinkStatement}
           projectTags={projectTags}
           transaction={editingTransaction}
+        />
+      )}
+
+      {isBulkEditOpen && (
+        <BulkEditActivitiesModal
+          accounts={accounts}
+          categories={categories}
+          onClose={() => setIsBulkEditOpen(false)}
+          onSave={handleBulkUpdate}
+          projectTags={projectTags}
+          selectedTransactions={transactions.filter((transaction) => selectedIds.includes(transaction.id))}
         />
       )}
     </div>

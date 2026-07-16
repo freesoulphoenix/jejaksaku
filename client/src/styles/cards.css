@@ -1237,6 +1237,43 @@
   padding: 0;
 }
 
+.activity-page-heading-actions,
+.activity-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-page-heading-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.activity-select-mode-button {
+  min-height: 40px;
+}
+
+.activity-selection-toolbar {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) auto minmax(110px, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #dceaf7;
+  background: #f4f9ff;
+}
+
+.activity-selection-toolbar > span {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.activity-selection-actions {
+  justify-content: flex-end;
+}
+
 .activity-transaction-list {
   display: grid;
   gap: 0;
@@ -1264,6 +1301,14 @@
 
 .activity-transaction-row:last-child .activity-transaction-row-slide {
   border-bottom: 0;
+}
+
+.activity-transaction-row.selection-mode .activity-transaction-row-slide {
+  cursor: pointer;
+}
+
+.activity-transaction-row.is-selected .activity-transaction-row-slide {
+  background: #edf7ff;
 }
 
 .activity-transaction-row.reveal-delete .activity-transaction-row-slide {
@@ -1298,6 +1343,14 @@
 
 .activity-transaction-minus-button {
   color: var(--color-danger);
+}
+
+.activity-transaction-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
 .activity-transaction-icon-button,
@@ -1412,8 +1465,23 @@
 .account-page-add-button,
 .activity-page-add-button {
   flex: 0 0 auto;
-  margin-left: auto;
   align-self: flex-start;
+}
+
+.account-page-add-button {
+  margin-left: auto;
+}
+
+.activity-bulk-edit-copy {
+  margin: -4px 0 18px;
+  font-size: 0.84rem;
+}
+
+.activity-bulk-edit-modal .field-group small {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 @media (max-width: 767px) {
@@ -1467,6 +1535,33 @@
   .activity-list-panel {
     min-height: 0;
     border-radius: 18px;
+  }
+
+  .activity-page-heading-actions {
+    gap: 6px;
+  }
+
+  .activity-select-mode-button {
+    min-height: 40px;
+    padding: 8px 11px;
+    font-size: 0.75rem;
+  }
+
+  .activity-selection-toolbar {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .activity-selection-toolbar > span {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: left;
+  }
+
+  .activity-selection-actions {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .activity-transaction-row {

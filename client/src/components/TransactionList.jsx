@@ -168,9 +168,14 @@ function ActivityTransactionList({
   activeDeleteId = '',
   onDelete,
   onEdit,
+  onToggleSelection,
   onToggleDelete,
+  selectedIds = [],
+  selectionMode = false,
   transactions
 }) {
+  const selectedIdSet = new Set(selectedIds);
+
   if (transactions.length === 0) {
     return (
       <p className="muted-copy activity-empty-copy">
@@ -192,7 +197,9 @@ function ActivityTransactionList({
 
         const rowClassName = [
           'activity-transaction-row',
-          activeDeleteId === transaction.id ? 'reveal-delete' : ''
+          activeDeleteId === transaction.id ? 'reveal-delete' : '',
+          selectedIdSet.has(transaction.id) ? 'is-selected' : '',
+          selectionMode ? 'selection-mode' : ''
         ]
           .filter(Boolean)
           .join(' ');
@@ -200,22 +207,36 @@ function ActivityTransactionList({
 
         return (
           <div className={rowClassName} key={transaction.id}>
-            <div className="activity-transaction-row-slide">
-              <button
-                aria-label={
-                  activeDeleteId === transaction.id
-                    ? `Hide delete for ${getTransactionTitle(transaction)}`
-                    : `Show delete for ${getTransactionTitle(transaction)}`
-                }
-                className="activity-transaction-minus-button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggleDelete?.(transaction.id);
-                }}
-                type="button"
-              >
-                <FlatIcon name="minus" />
-              </button>
+            <div
+              className="activity-transaction-row-slide"
+              onClick={selectionMode ? () => onToggleSelection?.(transaction.id) : undefined}
+            >
+              {selectionMode ? (
+                <input
+                  aria-label={`Select ${getTransactionTitle(transaction)}`}
+                  checked={selectedIdSet.has(transaction.id)}
+                  className="activity-transaction-checkbox"
+                  onChange={() => onToggleSelection?.(transaction.id)}
+                  onClick={(event) => event.stopPropagation()}
+                  type="checkbox"
+                />
+              ) : (
+                <button
+                  aria-label={
+                    activeDeleteId === transaction.id
+                      ? `Hide delete for ${getTransactionTitle(transaction)}`
+                      : `Show delete for ${getTransactionTitle(transaction)}`
+                  }
+                  className="activity-transaction-minus-button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleDelete?.(transaction.id);
+                  }}
+                  type="button"
+                >
+                  <FlatIcon name="minus" />
+                </button>
+              )}
 
               <div className="activity-transaction-main">
                 <div className="activity-transaction-title-row">
@@ -237,34 +258,40 @@ function ActivityTransactionList({
                   {getAmountLabel(transaction)}
                 </strong>
 
-                <button
-                  aria-label={`Edit ${getTransactionTitle(transaction)}`}
-                  className="activity-transaction-icon-button"
-                  onClick={() => onEdit?.(transaction)}
-                  type="button"
-                >
-                  <FlatIcon name="edit" />
-                </button>
+                {!selectionMode && (
+                  <>
+                    <button
+                      aria-label={`Edit ${getTransactionTitle(transaction)}`}
+                      className="activity-transaction-icon-button"
+                      onClick={() => onEdit?.(transaction)}
+                      type="button"
+                    >
+                      <FlatIcon name="edit" />
+                    </button>
 
-                <span
-                  aria-hidden="true"
-                  className="activity-transaction-grip"
-                  title="Transactions are ordered by date"
-                >
-                  <FlatIcon name="grip" />
-                </span>
+                    <span
+                      aria-hidden="true"
+                      className="activity-transaction-grip"
+                      title="Transactions are ordered by date"
+                    >
+                      <FlatIcon name="grip" />
+                    </span>
+                  </>
+                )}
 
               </div>
             </div>
 
-            <button
-              aria-label={`Delete ${getTransactionTitle(transaction)}`}
-              className="activity-transaction-delete-reveal"
-              onClick={() => onDelete?.(transaction)}
-              type="button"
-            >
-              <FlatIcon name="trash" />
-            </button>
+            {!selectionMode && (
+              <button
+                aria-label={`Delete ${getTransactionTitle(transaction)}`}
+                className="activity-transaction-delete-reveal"
+                onClick={() => onDelete?.(transaction)}
+                type="button"
+              >
+                <FlatIcon name="trash" />
+              </button>
+            )}
           </div>
         );
       })}
