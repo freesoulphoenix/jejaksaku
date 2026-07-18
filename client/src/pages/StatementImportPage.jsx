@@ -39,6 +39,11 @@ const emptyReviewSummary = {
   totalExpense: 0,
   totalIncome: 0
 };
+const emptyBulkValues = {
+  account_id: '',
+  category_id: '',
+  project_tag_id: ''
+};
 const reviewFilters = [
   { id: 'all', label: 'All' },
   { id: 'income', label: 'Income' },
@@ -144,11 +149,7 @@ export default function StatementImportPage() {
   const [reviewTotalCount, setReviewTotalCount] = useState(0);
   const [reviewSummary, setReviewSummary] = useState(emptyReviewSummary);
   const [loadingMoreRows, setLoadingMoreRows] = useState(false);
-  const [bulkValues, setBulkValues] = useState({
-    account_id: '',
-    category_id: '',
-    project_tag_id: ''
-  });
+  const [bulkValues, setBulkValues] = useState(emptyBulkValues);
   const [editingIds, setEditingIds] = useState(new Set());
   const [rawVisibleIds, setRawVisibleIds] = useState(new Set());
   const [pendingMatch, setPendingMatch] = useState(null);
@@ -158,6 +159,7 @@ export default function StatementImportPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const fileInputRef = useRef(null);
+  const reviewRequestIdRef = useRef(0);
   const allCategoryOptions = useMemo(() => getCategoryOptions(categories, null), [categories]);
   const getRowCategoryOptions = (row) => (
     getCategoryOptions(categories, row.transaction_type === 'transfer' ? null : row.transaction_type)
@@ -513,18 +515,56 @@ export default function StatementImportPage() {
     });
   }
 
-  async function loadReviewRows(statementImport, { append = false } = {}) {
+  function resetReviewSession() {
+    reviewRequestIdRef.current += 1;
+    setPreviewRows([]);
+    setSelectedIds(new Set());
+    setBulkValues({ ...emptyBulkValues });
+    setEditingIds(new Set());
+    setRawVisibleIds(new Set());
+    setPendingMatch(null);
+    setReviewFilter('all');
+    setReviewSearch('');
+    setReviewTotalCount(0);
+    setReviewSummary(emptyReviewSummary);
+    setReviewCollapsed(false);
+    setLoadingMoreRows(false);
+    setError('');
+    setSuccess('');
+  }
+
+  async function loadReviewRows(statementImport, {
+    append = false,
+    filter = reviewFilter,
+    search = reviewSearch
+  } = {}) {
     if (!statementImport?.id) {
       return;
     }
 
+    const requestId = reviewRequestIdRef.current + 1;
+    reviewRequestIdRef.current = requestId;
     const offset = append ? previewRows.length : 0;
-    const result = await getImportedTransactions(statementImport.id, {
-      filter: reviewFilter,
-      offset,
-      pageSize: IMPORTED_TRANSACTION_REVIEW_PAGE_SIZE,
-      search: reviewSearch
-    });
+    let result;
+
+    try {
+      result = await getImportedTransactions(statementImport.id, {
+        filter,
+        offset,
+        pageSize: IMPORTED_TRANSACTION_REVIEW_PAGE_SIZE,
+        search
+      });
+    } catch (err) {
+      if (requestId !== reviewRequestIdRef.current) {
+        return;
+      }
+
+      throw err;
+    }
+
+    if (requestId !== reviewRequestIdRef.current) {
+      return;
+    }
 
     setPreviewRows((currentRows) => (append ? [...currentRows, ...result.rows] : result.rows));
     setReviewTotalCount(result.count);
@@ -536,12 +576,11 @@ export default function StatementImportPage() {
   }
 
   async function openImportPreview(statementImport) {
-    setError('');
+    resetReviewSession();
+    setActiveImport(statementImport);
 
     try {
-      setActiveImport(statementImport);
-      setReviewCollapsed(false);
-      await loadReviewRows(statementImport);
+      await loadReviewRows(statementImport, { filter: 'all', search: '' });
     } catch (err) {
       setError(err.message || 'Unable to open import preview.');
     }
@@ -575,9 +614,9 @@ export default function StatementImportPage() {
 
       await saveImportedTransactions(statementImport.id, getRowsWithSourceAccount(rows, statementImport.bank_name));
 
+      resetReviewSession();
       setActiveImport(statementImport);
-      setReviewCollapsed(false);
-      await loadReviewRows(statementImport);
+      await loadReviewRows(statementImport, { filter: 'all', search: '' });
       await loadImports();
     } catch (err) {
       setError(err.message || 'Unable to re-parse this statement.');
@@ -621,10 +660,10 @@ export default function StatementImportPage() {
       const rowsWithSourceAccount = getRowsWithSourceAccount(rows, sourceAccount);
       await saveImportedTransactions(statementImport.id, rowsWithSourceAccount);
 
+      resetReviewSession();
       clearSelectedStatementFile();
       setActiveImport(statementImport);
-      setReviewCollapsed(false);
-      await loadReviewRows(statementImport);
+      await loadReviewRows(statementImport, { filter: 'all', search: '' });
       await loadImports();
     } catch (err) {
       setError(err.message || 'Unable to upload and parse statement.');
@@ -665,11 +704,7 @@ export default function StatementImportPage() {
 
       if (activeImport?.id === deletedImportId) {
         setActiveImport(null);
-        setReviewCollapsed(false);
-        setPreviewRows([]);
-        setReviewTotalCount(0);
-        setReviewSummary(emptyReviewSummary);
-        setSelectedIds(new Set());
+        resetReviewSession();
       }
     } catch (err) {
       setError(err.message || 'Unable to delete uploaded file.');
