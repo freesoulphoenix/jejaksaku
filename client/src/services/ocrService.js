@@ -334,10 +334,12 @@ async function loadImage(url) {
 }
 
 function preprocessImageForOcr(image) {
-  const maxLongEdge = 2200;
+  const targetLongEdge = 1800;
+  const maxUpscale = 1.5;
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
-  const scale = Math.min(2, Math.max(1, maxLongEdge / Math.max(sourceWidth, sourceHeight)));
+  const longEdge = Math.max(sourceWidth, sourceHeight);
+  const scale = Math.min(maxUpscale, targetLongEdge / longEdge);
   const width = Math.max(1, Math.round(sourceWidth * scale));
   const height = Math.max(1, Math.round(sourceHeight * scale));
   const canvas = document.createElement('canvas');
