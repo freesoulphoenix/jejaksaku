@@ -21,7 +21,7 @@ import {
 } from '../services/statementImportService.js';
 import { createTransaction } from '../services/transactionService.js';
 import { linkDuePayment } from '../services/upcomingDueService.js';
-import { getCategoryOptions } from '../utils/categoryOptions.js';
+import { getCategoryOptions, getTransactionCategoryType } from '../utils/categoryOptions.js';
 import { earliestHistoricalDate, getLocalIsoDate } from '../utils/dateBounds.js';
 import { formatCurrency } from '../utils/format.js';
 import { resolveMoneyDirection } from '../utils/transactionDirection.js';
@@ -162,7 +162,10 @@ export default function StatementImportPage() {
   const reviewRequestIdRef = useRef(0);
   const allCategoryOptions = useMemo(() => getCategoryOptions(categories, null), [categories]);
   const getRowCategoryOptions = (row) => (
-    getCategoryOptions(categories, row.transaction_type === 'transfer' ? null : row.transaction_type)
+    getCategoryOptions(
+      categories,
+      getTransactionCategoryType(row.transaction_type, row.financial_activity)
+    )
   );
   const sourceAccounts = useMemo(() => (
     accounts.filter((account) => ['Bank', 'E-Wallet', 'Credit Card', 'PayLater'].includes(account.type))
@@ -378,6 +381,18 @@ export default function StatementImportPage() {
         nextRow.from_account_id = value;
       } else if (nextRow.money_direction === 'in') {
         nextRow.to_account_id = value;
+      }
+    }
+
+    if (field === 'transaction_type' || field === 'financial_activity') {
+      const nextCategoryType = getTransactionCategoryType(
+        nextRow.transaction_type,
+        nextRow.financial_activity
+      );
+      const selectedCategory = categories.find((category) => category.id === nextRow.category_id);
+
+      if (!nextCategoryType || (selectedCategory && selectedCategory.type !== nextCategoryType)) {
+        nextRow.category_id = '';
       }
     }
 

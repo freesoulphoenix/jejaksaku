@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import BoundedDatePicker from './BoundedDatePicker.jsx';
-import { getCategoryOptions } from '../utils/categoryOptions.js';
+import { getCategoryOptions, getTransactionCategoryType } from '../utils/categoryOptions.js';
 import { earliestHistoricalDate, getLocalIsoDate } from '../utils/dateBounds.js';
 
 const today = getLocalIsoDate();
@@ -50,16 +50,26 @@ export default function AddTransactionModal({
   const [error, setError] = useState('');
   const [linkMessage, setLinkMessage] = useState('');
   const isTransfer = form.transaction_type === 'transfer';
+  const categoryType = getTransactionCategoryType(form.transaction_type, form.financial_activity);
   const categoryOptions = useMemo(() => (
-    getCategoryOptions(categories, form.transaction_type === 'transfer' ? null : form.transaction_type)
-  ), [categories, form.transaction_type]);
+    getCategoryOptions(categories, categoryType)
+  ), [categories, categoryType]);
 
   function updateField(field, value) {
-    setForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-      ...(field === 'transaction_type' && value === 'transfer' ? { category_id: '' } : {})
-    }));
+    setForm((currentForm) => {
+      const nextForm = { ...currentForm, [field]: value };
+      const nextCategoryType = getTransactionCategoryType(
+        nextForm.transaction_type,
+        nextForm.financial_activity
+      );
+      const selectedCategory = categories.find((category) => category.id === nextForm.category_id);
+
+      if (!nextCategoryType || (selectedCategory && selectedCategory.type !== nextCategoryType)) {
+        nextForm.category_id = '';
+      }
+
+      return nextForm;
+    });
   }
 
   async function handleSubmit(event) {

@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
+import { getTransactionCategoryType } from '../utils/categoryOptions.js';
 
 function requireSupabase() {
   if (!supabase) {
@@ -364,7 +365,12 @@ export async function updateTransactions(transactions = [], changes = {}) {
       }
     }
 
-    if (category && !isTransfer && category.type !== transaction.transaction_type) {
+    const requiredCategoryType = getTransactionCategoryType(
+      nextTransaction.transaction_type,
+      nextTransaction.financial_activity
+    );
+
+    if (category && requiredCategoryType && category.type !== requiredCategoryType) {
       throw new Error('The selected category must match the type of every selected expense or income activity.');
     }
 

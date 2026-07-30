@@ -1,3 +1,11 @@
+export function getTransactionCategoryType(transactionType, financialActivity) {
+  if (transactionType === 'transfer') {
+    return null;
+  }
+
+  return financialActivity === 'refund' ? 'expense' : transactionType;
+}
+
 export function getCategoryOptions(categories = [], type = 'expense') {
   const filteredCategories = categories.filter((category) => !type || category.type === type);
   const byParentId = new Map();

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { getCategoryOptions } from '../utils/categoryOptions.js';
+import { getCategoryOptions, getTransactionCategoryType } from '../utils/categoryOptions.js';
 
 const unchangedValue = '__unchanged__';
 const clearValue = '__clear__';
@@ -20,11 +20,30 @@ export default function BulkEditActivitiesModal({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const categoryOptions = useMemo(() => getCategoryOptions(categories, null), [categories]);
   const hasCategorizedTransactions = selectedTransactions.some((transaction) => transaction.transaction_type !== 'transfer');
+  const categoryTypes = useMemo(() => new Set(
+    selectedTransactions
+      .map((transaction) => getTransactionCategoryType(
+        transaction.transaction_type,
+        form.financial_activity === unchangedValue
+          ? transaction.financial_activity
+          : form.financial_activity
+      ))
+      .filter(Boolean)
+  ), [form.financial_activity, selectedTransactions]);
+  const hasMixedCategoryTypes = categoryTypes.size > 1;
+  const categoryType = categoryTypes.size === 1 ? [...categoryTypes][0] : null;
+  const categoryOptions = useMemo(
+    () => (hasMixedCategoryTypes ? [] : getCategoryOptions(categories, categoryType)),
+    [categories, categoryType, hasMixedCategoryTypes]
+  );
 
   function updateField(field, value) {
-    setForm((currentForm) => ({ ...currentForm, [field]: value }));
+    setForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+      ...(field === 'financial_activity' ? { category_id: unchangedValue } : {})
+    }));
   }
 
   async function handleSubmit(event) {
@@ -137,7 +156,7 @@ export default function BulkEditActivitiesModal({
           <label className="field-group span-2">
             Category
             <select
-              disabled={!hasCategorizedTransactions}
+              disabled={!hasCategorizedTransactions || hasMixedCategoryTypes}
               onChange={(event) => updateField('category_id', event.target.value)}
               value={form.category_id}
             >
@@ -147,9 +166,13 @@ export default function BulkEditActivitiesModal({
               ))}
             </select>
             <small>
-              {hasCategorizedTransactions
-                ? 'Category changes apply to expenses and income; transfers are left unchanged.'
-                : 'Transfers do not use categories.'}
+              {hasMixedCategoryTypes
+                ? 'The selection mixes income and expense categories. Change Activity first or keep current categories.'
+                : form.financial_activity === 'refund'
+                  ? 'Refunds use expense categories so they reduce the original spending category.'
+                  : hasCategorizedTransactions
+                    ? 'Category changes apply to expenses and income; transfers are left unchanged.'
+                    : 'Transfers do not use categories.'}
             </small>
           </label>
 
