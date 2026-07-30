@@ -1477,6 +1477,10 @@
   font-size: 0.84rem;
 }
 
+.activity-bulk-edit-modal .field-group {
+  align-content: start;
+}
+
 .activity-bulk-edit-modal .field-group small {
   color: var(--color-muted);
   font-size: 0.72rem;

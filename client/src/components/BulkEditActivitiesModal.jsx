@@ -21,7 +21,6 @@ export default function BulkEditActivitiesModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const categoryOptions = useMemo(() => getCategoryOptions(categories, null), [categories]);
-  const hasTransfers = selectedTransactions.some((transaction) => transaction.transaction_type === 'transfer');
   const hasCategorizedTransactions = selectedTransactions.some((transaction) => transaction.transaction_type !== 'transfer');
 
   function updateField(field, value) {
@@ -103,7 +102,6 @@ export default function BulkEditActivitiesModal({
                 <option key={account.id} value={account.id}>{account.name}</option>
               ))}
             </select>
-            {hasTransfers && <small>For transfers, this changes the From Account.</small>}
           </label>
 
           <label className="field-group">
