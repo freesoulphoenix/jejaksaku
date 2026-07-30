@@ -14,6 +14,7 @@ export default function BulkEditActivitiesModal({
 }) {
   const [form, setForm] = useState({
     account_id: unchangedValue,
+    financial_activity: unchangedValue,
     category_id: unchangedValue,
     project_tag_id: unchangedValue
   });
@@ -34,6 +35,10 @@ export default function BulkEditActivitiesModal({
 
     if (form.account_id !== unchangedValue) {
       changes.account_id = form.account_id;
+    }
+
+    if (form.financial_activity !== unchangedValue) {
+      changes.financial_activity = form.financial_activity;
     }
 
     if (form.category_id !== unchangedValue) {
@@ -112,6 +117,22 @@ export default function BulkEditActivitiesModal({
               {projectTags.map((tag) => (
                 <option key={tag.id} value={tag.id}>{tag.name}</option>
               ))}
+            </select>
+          </label>
+
+          <label className="field-group span-2">
+            Activity
+            <select
+              onChange={(event) => updateField('financial_activity', event.target.value)}
+              value={form.financial_activity}
+            >
+              <option value={unchangedValue}>Keep current activities</option>
+              <option value="standard">Standard Purchase</option>
+              <option value="payment">Credit payment</option>
+              <option value="refund">Refund</option>
+              <option value="fee">Fee / interest</option>
+              <option value="cash_advance">Cash advance</option>
+              <option value="installment">Installment</option>
             </select>
           </label>
 

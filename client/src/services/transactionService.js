@@ -347,6 +347,9 @@ export async function updateTransactions(transactions = [], changes = {}) {
       ...(Object.hasOwn(changes, 'project_tag_id')
         ? { project_tag_id: changes.project_tag_id }
         : {}),
+      ...(Object.hasOwn(changes, 'financial_activity')
+        ? { financial_activity: changes.financial_activity }
+        : {}),
       ...(Object.hasOwn(changes, 'category_id') && !isTransfer
         ? { category_id: changes.category_id }
         : {})
