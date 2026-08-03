@@ -511,8 +511,15 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
               <button className="receipt-image-button" onClick={() => openReceiptDetail(receipt)}>
                 {fileAvailable && isPdfReceiptUrl(receipt.image_url) ? (
                   <span>PDF receipt</span>
+                ) : fileAvailable && receipt.thumbnail_url ? (
+                  <img
+                    alt={receipt.merchant_name || 'Receipt'}
+                    decoding="async"
+                    loading="lazy"
+                    src={receipt.thumbnail_url}
+                  />
                 ) : fileAvailable ? (
-                  <img alt={receipt.merchant_name || 'Receipt'} src={receipt.image_url} />
+                  <span>Receipt image</span>
                 ) : receipt.file_deleted_at ? (
                   <span>File expired</span>
                 ) : (

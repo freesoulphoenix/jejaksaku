@@ -3,6 +3,9 @@ import { getCurrentUserProfileId } from './userProfileService.js';
 import { createTransaction, updateTransaction } from './transactionService.js';
 
 const RECEIPT_BUCKET = 'receipts';
+const IMMUTABLE_CACHE_SECONDS = '31536000';
+const THUMBNAIL_MAX_EDGE = 320;
+const THUMBNAIL_QUALITY = 0.68;
 
 function requireSupabase() {
   if (!supabase) {
@@ -21,12 +24,54 @@ async function getScopedClient() {
 }
 
 function getFileExtension(file) {
-  return file.name.split('.').pop() || 'jpg';
+  return file.name.split('.').pop()?.toLowerCase() || 'jpg';
 }
 
-function createReceiptPath(userProfileId, file) {
+function createReceiptPaths(userProfileId, file) {
   const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
-  return `${userProfileId}/${id}.${getFileExtension(file)}`;
+  return {
+    original: `${userProfileId}/${id}.${getFileExtension(file)}`,
+    thumbnail: `${userProfileId}/${id}.thumb.webp`
+  };
+}
+
+function isPdfFile(file) {
+  return file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+}
+
+async function createReceiptThumbnail(file) {
+  if (typeof document === 'undefined' || isPdfFile(file)) {
+    return null;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const nextImage = new Image();
+      nextImage.onload = () => resolve(nextImage);
+      nextImage.onerror = () => reject(new Error('Unable to create a receipt thumbnail.'));
+      nextImage.src = objectUrl;
+    });
+    const scale = Math.min(1, THUMBNAIL_MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Unable to encode a receipt thumbnail.'))),
+        'image/webp',
+        THUMBNAIL_QUALITY
+      );
+    });
+  } catch (error) {
+    // Unsupported image formats still retain their original file for the detail view.
+    return null;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 function getStoragePathFromUrl(url) {
@@ -45,11 +90,12 @@ function getStoragePathFromUrl(url) {
 }
 
 async function uploadReceiptFile(client, userProfileId, file) {
-  const path = createReceiptPath(userProfileId, file);
+  const paths = createReceiptPaths(userProfileId, file);
+  const thumbnail = await createReceiptThumbnail(file);
   const { error } = await client.storage
     .from(RECEIPT_BUCKET)
-    .upload(path, file, {
-      cacheControl: '3600',
+    .upload(paths.original, file, {
+      cacheControl: IMMUTABLE_CACHE_SECONDS,
       contentType: file.type || 'image/jpeg',
       upsert: false
     });
@@ -58,10 +104,31 @@ async function uploadReceiptFile(client, userProfileId, file) {
     throw error;
   }
 
-  const { data } = client.storage.from(RECEIPT_BUCKET).getPublicUrl(path);
+  let thumbnailUrl = null;
+
+  if (thumbnail) {
+    const { error: thumbnailError } = await client.storage
+      .from(RECEIPT_BUCKET)
+      .upload(paths.thumbnail, thumbnail, {
+        cacheControl: IMMUTABLE_CACHE_SECONDS,
+        contentType: 'image/webp',
+        upsert: false
+      });
+
+    if (thumbnailError) {
+      await client.storage.from(RECEIPT_BUCKET).remove([paths.original]);
+      throw thumbnailError;
+    }
+
+    thumbnailUrl = client.storage.from(RECEIPT_BUCKET).getPublicUrl(paths.thumbnail).data.publicUrl;
+  }
+
+  const { data } = client.storage.from(RECEIPT_BUCKET).getPublicUrl(paths.original);
   return {
-    path,
-    publicUrl: data.publicUrl
+    path: paths.original,
+    publicUrl: data.publicUrl,
+    thumbnailPath: thumbnail ? paths.thumbnail : null,
+    thumbnailUrl
   };
 }
 
@@ -70,6 +137,8 @@ function normalizeReceipt(receipt, userProfileId, uploadedFile) {
     user_profile_id: userProfileId,
     image_url: uploadedFile.publicUrl,
     file_storage_path: uploadedFile.path,
+    thumbnail_url: uploadedFile.thumbnailUrl,
+    thumbnail_storage_path: uploadedFile.thumbnailPath,
     merchant_name: receipt.merchant_name || null,
     receipt_date: receipt.receipt_date || null,
     total_amount: Number(receipt.total_amount || 0),
@@ -146,6 +215,12 @@ export async function createReceipt(receipt) {
     .single();
 
   if (error) {
+    const uploadedPaths = [uploadedFile.path, uploadedFile.thumbnailPath].filter(Boolean);
+
+    if (uploadedPaths.length > 0) {
+      await client.storage.from(RECEIPT_BUCKET).remove(uploadedPaths);
+    }
+
     throw error;
   }
 
@@ -274,7 +349,7 @@ export async function deleteReceipt(id) {
   const { client, userProfileId } = await getScopedClient();
   const { data: receipt, error: fetchError } = await client
     .from('receipts')
-    .select('image_url, file_storage_path')
+    .select('image_url, file_storage_path, thumbnail_url, thumbnail_storage_path')
     .eq('id', id)
     .eq('user_profile_id', userProfileId)
     .single();
@@ -294,8 +369,10 @@ export async function deleteReceipt(id) {
   }
 
   const storagePath = receipt.file_storage_path || getStoragePathFromUrl(receipt.image_url);
+  const thumbnailStoragePath = receipt.thumbnail_storage_path || getStoragePathFromUrl(receipt.thumbnail_url);
+  const storagePaths = [storagePath, thumbnailStoragePath].filter(Boolean);
 
-  if (storagePath) {
-    await client.storage.from(RECEIPT_BUCKET).remove([storagePath]);
+  if (storagePaths.length > 0) {
+    await client.storage.from(RECEIPT_BUCKET).remove(storagePaths);
   }
 }

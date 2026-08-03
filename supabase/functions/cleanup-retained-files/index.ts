@@ -40,7 +40,7 @@ async function cleanupReceipts(supabase: ReturnType<typeof createClient>, now: s
   const stats = { scanned: 0, deleted: 0, failed: 0 };
   const { data, error } = await supabase
     .from("receipts")
-    .select("id, image_url, file_storage_path")
+    .select("id, image_url, file_storage_path, thumbnail_url, thumbnail_storage_path")
     .is("file_deleted_at", null)
     .not("image_url", "is", null)
     .lte("file_retention_expires_at", now)
@@ -53,13 +53,15 @@ async function cleanupReceipts(supabase: ReturnType<typeof createClient>, now: s
   for (const receipt of data ?? []) {
     stats.scanned += 1;
     const storagePath = receipt.file_storage_path || pathFromPublicUrl(receipt.image_url, "receipts");
+    const thumbnailStoragePath = receipt.thumbnail_storage_path || pathFromPublicUrl(receipt.thumbnail_url, "receipts");
+    const storagePaths = [storagePath, thumbnailStoragePath].filter(Boolean);
 
-    if (!storagePath) {
+    if (storagePaths.length === 0) {
       stats.failed += 1;
       continue;
     }
 
-    const { error: removeError } = await supabase.storage.from("receipts").remove([storagePath]);
+    const { error: removeError } = await supabase.storage.from("receipts").remove(storagePaths);
 
     if (removeError) {
       stats.failed += 1;
@@ -70,6 +72,7 @@ async function cleanupReceipts(supabase: ReturnType<typeof createClient>, now: s
       .from("receipts")
       .update({
         image_url: null,
+        thumbnail_url: null,
         file_deleted_at: now
       })
       .eq("id", receipt.id);
