@@ -341,7 +341,7 @@ export default function TransactionsPage({ onNavigate }) {
           <span className="sr-only">Search transactions</span>
           <input
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search: Tokopedia; BCA; Creative"
+            placeholder="Search: Tokopedia; BCA; Daily Life"
             ref={searchInputRef}
             type="search"
             value={searchTerm}
