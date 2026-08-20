@@ -58,7 +58,7 @@ with child_defaults(parent_name, child_name, sort_order) as (
     ('Personal Care', 'Grooming', 1),
     ('Personal Care', 'Skincare', 2),
     ('Personal Care', 'Laundry', 3),
-    ('Entertainment', 'Movies & Events', 1),
+    ('Entertainment', 'Movies', 1),
     ('Entertainment', 'Books', 2),
     ('Entertainment', 'Weekend Fun', 3),
     ('Entertainment', 'Leisure', 4),

@@ -41,7 +41,7 @@ export const defaultCategoryTree = [
   },
   {
     name: 'Entertainment',
-    children: ['Movies & Events', 'Books', 'Weekend Fun', 'Leisure']
+    children: ['Movies', 'Books', 'Weekend Fun', 'Leisure']
   },
   {
     name: 'Travel',

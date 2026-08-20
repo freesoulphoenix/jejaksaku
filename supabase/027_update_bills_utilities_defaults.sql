@@ -127,7 +127,7 @@ begin
     ('Health', 'Doctor & Medicine', 1), ('Health', 'Fitness', 2),
     ('Health', 'Insurance', 3), ('Personal Care', 'Grooming', 1),
     ('Personal Care', 'Skincare', 2), ('Personal Care', 'Laundry', 3),
-    ('Entertainment', 'Movies & Events', 1), ('Entertainment', 'Books', 2),
+    ('Entertainment', 'Movies', 1), ('Entertainment', 'Books', 2),
     ('Entertainment', 'Weekend Fun', 3), ('Entertainment', 'Leisure', 4),
     ('Travel', 'Flight', 1), ('Travel', 'Hotel', 2),
     ('Travel', 'Local Transport', 3), ('Travel', 'Activities', 4),
