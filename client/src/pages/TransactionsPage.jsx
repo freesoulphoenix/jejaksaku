@@ -142,6 +142,11 @@ export default function TransactionsPage({ onNavigate }) {
   }, [pendingDeleteId]);
 
   const filteredTransactions = useMemo(() => {
+    const searchKeywords = searchTerm
+      .split(';')
+      .map((keyword) => keyword.trim().toLowerCase())
+      .filter(Boolean);
+
     return transactions.filter((transaction) => {
       const matchesType =
         typeFilter === 'all' ||
@@ -160,9 +165,7 @@ export default function TransactionsPage({ onNavigate }) {
         .join(' ')
         .toLowerCase();
 
-      const matchesSearch =
-        !searchTerm ||
-        haystack.includes(searchTerm.toLowerCase());
+      const matchesSearch = searchKeywords.every((keyword) => haystack.includes(keyword));
 
       return matchesType && matchesSearch;
     });
@@ -338,7 +341,7 @@ export default function TransactionsPage({ onNavigate }) {
           <span className="sr-only">Search transactions</span>
           <input
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search transactions"
+            placeholder="Search: Tokopedia; BCA; Creative"
             ref={searchInputRef}
             type="search"
             value={searchTerm}
