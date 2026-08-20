@@ -42,6 +42,7 @@ const emptyReviewSummary = {
 const emptyBulkValues = {
   account_id: '',
   category_id: '',
+  financial_activity: '',
   project_tag_id: ''
 };
 const reviewFilters = [
@@ -1100,6 +1101,18 @@ export default function StatementImportPage() {
               {allCategoryOptions.map((category) => (
                 <option key={category.id} value={category.id}>{category.displayName}</option>
               ))}
+            </select>
+            <select
+              onChange={(event) => applyBulkField('financial_activity', event.target.value)}
+              value={bulkValues.financial_activity}
+            >
+              <option value="">Apply activity to selected</option>
+              <option value="standard">Standard Purchase</option>
+              <option value="payment">Card payment</option>
+              <option value="refund">Refund</option>
+              <option value="fee">Fee / interest</option>
+              <option value="cash_advance">Cash advance</option>
+              <option value="installment">Installment</option>
             </select>
             <select onChange={(event) => applyBulkField('project_tag_id', event.target.value)} value={bulkValues.project_tag_id}>
               <option value="">Apply project tag to selected</option>
