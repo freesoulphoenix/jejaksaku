@@ -1537,7 +1537,6 @@ export default function StatementImportPage() {
                 <>
                   <button className="primary-button" disabled={saving} onClick={handleConfirmMatch}>Link as same transaction</button>
                   <button className="secondary-button" disabled={saving} onClick={handleIgnoreMatch}>Keep both</button>
-                  <button className="secondary-button" disabled={saving} onClick={() => setPendingMatch(null)}>Not a duplicate</button>
                 </>
               ) : (
                 <>
