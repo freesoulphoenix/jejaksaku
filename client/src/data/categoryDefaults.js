@@ -13,7 +13,7 @@ export const defaultCategoryTree = [
   },
   {
     name: 'Bills & Utilities',
-    children: ['Electricity', 'Water', 'Internet & Phone', 'Residential Maintenance', 'Residential Utilities Package']
+    children: ['Electricity', 'Water', 'Internet & CableTV', 'Mobile Phone & Data']
   },
   {
     name: 'Residential',

@@ -260,7 +260,6 @@ export async function getCurrentUserProfile() {
 
   if (existingProfile) {
     cachedProfile = existingProfile;
-    await seedUserDefaults(client, existingProfile.id);
     return existingProfile;
   }
 
