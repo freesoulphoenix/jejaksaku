@@ -33,6 +33,7 @@ create table if not exists public.categories (
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
   parent_category_id uuid references public.categories(id) on delete cascade,
   name text not null,
+  note text,
   type text default 'expense',
   sort_order integer default 0,
   created_at timestamptz default now(),

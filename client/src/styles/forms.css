@@ -588,6 +588,17 @@ textarea:focus {
   line-height: 1.15;
 }
 
+.category-parent-note {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.category-parent-edit-button {
+  color: var(--color-muted);
+}
+
 .category-header-tools {
   flex: 0 0 auto;
   justify-content: flex-end;
@@ -664,6 +675,10 @@ textarea:focus {
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: var(--color-surface-soft);
+}
+
+.category-manager-form.compact .category-note-field {
+  grid-column: span 2;
 }
 
 .category-manager-form.compact input,

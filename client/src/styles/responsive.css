@@ -229,6 +229,7 @@
   }
 
   .span-2,
+  .category-manager-form.compact .category-note-field,
   .modal-actions {
     grid-column: 1 / -1;
   }
@@ -311,6 +312,7 @@
   }
 
   .span-2,
+  .category-manager-form.compact .category-note-field,
   .modal-actions {
     grid-column: 1 / -1;
   }

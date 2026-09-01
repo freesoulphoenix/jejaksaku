@@ -44,7 +44,7 @@ async function getNextCategorySortOrder({ parentCategoryId, type, userProfileId 
   return Number.isFinite(currentMax) ? currentMax + 1 : 1;
 }
 
-export async function createCategory({ name, type = 'expense', parent_category_id = null }) {
+export async function createCategory({ name, note = '', type = 'expense', parent_category_id = null }) {
   if (!supabase) {
     throw new Error('Supabase is not configured.');
   }
@@ -62,6 +62,7 @@ export async function createCategory({ name, type = 'expense', parent_category_i
     .insert({
       user_profile_id: userProfileId,
       name: name.trim(),
+      note: note.trim() || null,
       type,
       parent_category_id: parentCategoryId,
       sort_order: sortOrder
@@ -96,7 +97,7 @@ export async function updateCategoryOrder(categories = []) {
   }
 }
 
-export async function updateCategory(id, { name, type = 'expense', parent_category_id = null }) {
+export async function updateCategory(id, { name, note = '', type = 'expense', parent_category_id = null }) {
   if (!supabase) {
     throw new Error('Supabase is not configured.');
   }
@@ -105,6 +106,7 @@ export async function updateCategory(id, { name, type = 'expense', parent_catego
     .from('categories')
     .update({
       name: name.trim(),
+      note: note.trim() || null,
       type,
       parent_category_id: parent_category_id || null
     })

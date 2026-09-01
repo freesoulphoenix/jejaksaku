@@ -8,6 +8,7 @@ import { getCurrentUserProfile, updateCurrentUserDefaultAccount } from '../servi
 const emptyCategoryForm = {
   id: null,
   name: '',
+  note: '',
   type: 'expense',
   parent_category_id: ''
 };
@@ -357,6 +358,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     setCategoryForm({
       id: category.id,
       name: category.name,
+      note: category.note || '',
       type: category.type || 'expense',
       parent_category_id: category.parent_category_id || ''
     });
@@ -600,6 +602,16 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             value={categoryForm.name}
           />
         </label>
+        {!categoryForm.parent_category_id && (
+          <label className="field-group category-note-field">
+            Note (optional)
+            <input
+              onChange={(event) => updateCategoryForm('note', event.target.value)}
+              placeholder="Add a short note"
+              value={categoryForm.note}
+            />
+          </label>
+        )}
         <label className="field-group">
           Type
           <select onChange={(event) => updateCategoryForm('type', event.target.value)} value={categoryForm.type}>
@@ -657,10 +669,21 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
               <span className="settings-flat-icon category-title-icon"><FlatIcon name="categoryAdd" /></span>
               <div>
                 <h2>{isChildView ? selectedParent.name : 'Add / remove categories'}</h2>
+                {isChildView && selectedParent.note && <p className="category-parent-note">{selectedParent.note}</p>}
               </div>
             </div>
 
             <div className="category-header-tools">
+              {isChildView && (
+                <button
+                  aria-label={`Edit ${selectedParent.name}`}
+                  className="category-icon-button category-parent-edit-button"
+                  onClick={() => editCategory(selectedParent)}
+                  type="button"
+                >
+                  <FlatIcon name="edit" />
+                </button>
+              )}
               {!isChildView && (
                 <label className="category-toggle" aria-label="Show subcategories">
                   <input
@@ -702,15 +725,20 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
                 >
                   <div className="category-row-slide">
                     {renderDeleteButton(category)}
-                    <div className="category-row-main">
+                    <button
+                      className="category-row-main"
+                      disabled={isChildView}
+                      onClick={() => openParentCategory(category)}
+                      type="button"
+                    >
                       <strong>{isChildView ? category.name : getCategoryLabel(category)}</strong>
                       {!isChildView && showSubcategories && preview && <small>{preview}</small>}
-                    </div>
+                    </button>
                     <div className="category-row-tools">
                       <button
                         className="category-icon-button"
-                        aria-label={isChildView ? `Edit ${category.name}` : `Open ${category.name} subcategories`}
-                        onClick={isChildView ? () => editCategory(category) : () => openParentCategory(category)}
+                        aria-label={`Edit ${category.name}`}
+                        onClick={() => editCategory(category)}
                         type="button"
                       >
                         <FlatIcon name="edit" />
