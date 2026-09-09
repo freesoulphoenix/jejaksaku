@@ -1167,6 +1167,24 @@
   grid-column: 1 / -1;
 }
 
+.activity-custom-period {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.activity-custom-period input {
+  min-height: 48px;
+  margin: 0;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
 .activity-search-field input,
 .activity-filter-field select {
   min-height: 52px;
@@ -1524,6 +1542,12 @@
 
   .activity-search-field {
     grid-column: auto;
+  }
+
+  .activity-custom-period {
+    grid-column: auto;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 8px;
   }
 
   .activity-search-field input,

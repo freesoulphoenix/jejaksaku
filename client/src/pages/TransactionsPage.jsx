@@ -28,7 +28,7 @@ function toDateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
-function getPeriodRange(period, today = new Date()) {
+function getPeriodRange(period, customFrom = '', customTo = '', today = new Date()) {
   const year = today.getFullYear();
   const month = today.getMonth();
 
@@ -49,6 +49,10 @@ function getPeriodRange(period, today = new Date()) {
 
   if (period === 'this-year') {
     return { from: `${year}-01-01`, to: toDateKey(today) };
+  }
+
+  if (period === 'custom') {
+    return { from: customFrom, to: customTo };
   }
 
   return null;
@@ -98,6 +102,8 @@ export default function TransactionsPage({ onNavigate }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [periodFilter, setPeriodFilter] = useState('all');
+  const [customPeriodFrom, setCustomPeriodFrom] = useState('');
+  const [customPeriodTo, setCustomPeriodTo] = useState('');
   const [accountFilter, setAccountFilter] = useState('all');
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [pendingDeleteId, setPendingDeleteId] = useState('');
@@ -181,15 +187,15 @@ export default function TransactionsPage({ onNavigate }) {
       .split(';')
       .map((keyword) => keyword.trim().toLowerCase())
       .filter(Boolean);
-    const periodRange = getPeriodRange(periodFilter);
+    const periodRange = getPeriodRange(periodFilter, customPeriodFrom, customPeriodTo);
 
     return transactions.filter((transaction) => {
       const matchesType =
         typeFilter === 'all' ||
         transaction.transaction_type === typeFilter;
       const matchesPeriod = !periodRange || (
-        transaction.transaction_date >= periodRange.from
-        && transaction.transaction_date <= periodRange.to
+        (!periodRange.from || transaction.transaction_date >= periodRange.from)
+        && (!periodRange.to || transaction.transaction_date <= periodRange.to)
       );
       const matchesAccount = accountFilter === 'all' || (
         transaction.account_id === accountFilter
@@ -214,7 +220,7 @@ export default function TransactionsPage({ onNavigate }) {
 
       return matchesType && matchesPeriod && matchesAccount && matchesSearch;
     });
-  }, [accountFilter, periodFilter, searchTerm, transactions, typeFilter]);
+  }, [accountFilter, customPeriodFrom, customPeriodTo, periodFilter, searchTerm, transactions, typeFilter]);
 
   function openCreateModal() {
     setEditingTransaction(null);
@@ -352,6 +358,18 @@ export default function TransactionsPage({ onNavigate }) {
     });
   }
 
+  function handlePeriodFilterChange(event) {
+    const nextPeriod = event.target.value;
+
+    if (nextPeriod === 'custom' && (!customPeriodFrom || !customPeriodTo)) {
+      const today = new Date();
+      setCustomPeriodFrom(customPeriodFrom || toDateKey(new Date(today.getFullYear(), today.getMonth(), 1)));
+      setCustomPeriodTo(customPeriodTo || toDateKey(today));
+    }
+
+    setPeriodFilter(nextPeriod);
+  }
+
   return (
     <div className="page-stack activity-page">
       <section className="page-heading activity-page-heading">
@@ -423,7 +441,7 @@ export default function TransactionsPage({ onNavigate }) {
         <label className="activity-filter-field">
           <span className="sr-only">Filter transaction period</span>
           <select
-            onChange={(event) => setPeriodFilter(event.target.value)}
+            onChange={handlePeriodFilterChange}
             value={periodFilter}
           >
             <option value="all">All periods</option>
@@ -431,6 +449,7 @@ export default function TransactionsPage({ onNavigate }) {
             <option value="last-month">Last month</option>
             <option value="last-3-months">Last 3 months</option>
             <option value="this-year">This year</option>
+            <option value="custom">Custom period</option>
           </select>
         </label>
 
@@ -446,6 +465,37 @@ export default function TransactionsPage({ onNavigate }) {
             ))}
           </select>
         </label>
+
+        {periodFilter === 'custom' && (
+          <div className="activity-custom-period">
+            <span>From</span>
+            <input
+              aria-label="Custom period start date"
+              max={customPeriodTo}
+              onChange={(event) => {
+                const nextFrom = event.target.value;
+                setCustomPeriodFrom(nextFrom);
+                if (nextFrom > customPeriodTo) setCustomPeriodTo(nextFrom);
+              }}
+              required
+              type="date"
+              value={customPeriodFrom}
+            />
+            <span>to</span>
+            <input
+              aria-label="Custom period end date"
+              min={customPeriodFrom}
+              onChange={(event) => {
+                const nextTo = event.target.value;
+                setCustomPeriodTo(nextTo);
+                if (nextTo < customPeriodFrom) setCustomPeriodFrom(nextTo);
+              }}
+              required
+              type="date"
+              value={customPeriodTo}
+            />
+          </div>
+        )}
       </section>
 
       <article className="panel activity-list-panel">
