@@ -21,6 +21,39 @@ import {
   linkDuePayment
 } from '../services/upcomingDueService.js';
 
+function toDateKey(date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getPeriodRange(period, today = new Date()) {
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
+  if (period === 'this-month') {
+    return { from: toDateKey(new Date(year, month, 1)), to: toDateKey(today) };
+  }
+
+  if (period === 'last-month') {
+    return {
+      from: toDateKey(new Date(year, month - 1, 1)),
+      to: toDateKey(new Date(year, month, 0))
+    };
+  }
+
+  if (period === 'last-3-months') {
+    return { from: toDateKey(new Date(year, month - 2, 1)), to: toDateKey(today) };
+  }
+
+  if (period === 'this-year') {
+    return { from: `${year}-01-01`, to: toDateKey(today) };
+  }
+
+  return null;
+}
+
 function FlatIcon({ name }) {
   const commonProps = {
     'aria-hidden': 'true',
@@ -64,6 +97,8 @@ export default function TransactionsPage({ onNavigate }) {
   const [defaultAccountId, setDefaultAccountId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState('all');
+  const [accountFilter, setAccountFilter] = useState('all');
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [pendingDeleteId, setPendingDeleteId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -146,11 +181,21 @@ export default function TransactionsPage({ onNavigate }) {
       .split(';')
       .map((keyword) => keyword.trim().toLowerCase())
       .filter(Boolean);
+    const periodRange = getPeriodRange(periodFilter);
 
     return transactions.filter((transaction) => {
       const matchesType =
         typeFilter === 'all' ||
         transaction.transaction_type === typeFilter;
+      const matchesPeriod = !periodRange || (
+        transaction.transaction_date >= periodRange.from
+        && transaction.transaction_date <= periodRange.to
+      );
+      const matchesAccount = accountFilter === 'all' || (
+        transaction.account_id === accountFilter
+        || transaction.from_account_id === accountFilter
+        || transaction.to_account_id === accountFilter
+      );
 
       const haystack = [
         transaction.description,
@@ -167,9 +212,9 @@ export default function TransactionsPage({ onNavigate }) {
 
       const matchesSearch = searchKeywords.every((keyword) => haystack.includes(keyword));
 
-      return matchesType && matchesSearch;
+      return matchesType && matchesPeriod && matchesAccount && matchesSearch;
     });
-  }, [searchTerm, transactions, typeFilter]);
+  }, [accountFilter, periodFilter, searchTerm, transactions, typeFilter]);
 
   function openCreateModal() {
     setEditingTransaction(null);
@@ -362,7 +407,7 @@ export default function TransactionsPage({ onNavigate }) {
           </span>
         </label>
 
-        <label className="activity-type-field">
+        <label className="activity-filter-field">
           <span className="sr-only">Filter transaction type</span>
           <select
             onChange={(event) => setTypeFilter(event.target.value)}
@@ -372,6 +417,33 @@ export default function TransactionsPage({ onNavigate }) {
             <option value="expense">Expense</option>
             <option value="income">Income</option>
             <option value="transfer">Transfer</option>
+          </select>
+        </label>
+
+        <label className="activity-filter-field">
+          <span className="sr-only">Filter transaction period</span>
+          <select
+            onChange={(event) => setPeriodFilter(event.target.value)}
+            value={periodFilter}
+          >
+            <option value="all">All periods</option>
+            <option value="this-month">This month</option>
+            <option value="last-month">Last month</option>
+            <option value="last-3-months">Last 3 months</option>
+            <option value="this-year">This year</option>
+          </select>
+        </label>
+
+        <label className="activity-filter-field">
+          <span className="sr-only">Filter account</span>
+          <select
+            onChange={(event) => setAccountFilter(event.target.value)}
+            value={accountFilter}
+          >
+            <option value="all">All accounts</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>{account.name}</option>
+            ))}
           </select>
         </label>
       </section>
