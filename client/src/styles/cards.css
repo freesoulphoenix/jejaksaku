@@ -1212,8 +1212,18 @@
 .activity-filter-summary strong {
   overflow: hidden;
   font-size: 1rem;
+  font-weight: 950;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.activity-summary-income,
+.activity-summary-total {
+  color: var(--color-primary);
+}
+
+.activity-summary-expense {
+  color: var(--color-danger);
 }
 
 .activity-search-field input,

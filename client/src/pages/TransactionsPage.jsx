@@ -519,17 +519,15 @@ export default function TransactionsPage({ onNavigate }) {
         <div className="activity-filter-summary" aria-live="polite">
           <div>
             <span>Income</span>
-            <strong className="amount-positive">{formatCurrency(activitySummary.income)}</strong>
+            <strong className="activity-summary-income">{formatCurrency(activitySummary.income)}</strong>
           </div>
           <div>
             <span>Expense</span>
-            <strong className="amount-negative">{formatCurrency(activitySummary.expense)}</strong>
+            <strong className="activity-summary-expense">{formatCurrency(activitySummary.expense)}</strong>
           </div>
           <div>
             <span>Total</span>
-            <strong className={activitySummary.total < 0 ? 'amount-negative' : 'amount-positive'}>
-              {formatCurrency(activitySummary.total)}
-            </strong>
+            <strong className="activity-summary-total">{formatCurrency(activitySummary.total)}</strong>
           </div>
         </div>
       </section>
