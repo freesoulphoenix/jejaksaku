@@ -7,6 +7,8 @@ import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
 import { getProjectTags } from '../services/projectTagService.js';
 import { getCurrentUserProfile } from '../services/userProfileService.js';
+import { getReportIncomeAmount, getSpendingAmount } from '../utils/creditFacility.js';
+import { formatCurrency } from '../utils/format.js';
 import {
   createTransaction,
   deleteTransactions,
@@ -221,6 +223,23 @@ export default function TransactionsPage({ onNavigate }) {
       return matchesType && matchesPeriod && matchesAccount && matchesSearch;
     });
   }, [accountFilter, customPeriodFrom, customPeriodTo, periodFilter, searchTerm, transactions, typeFilter]);
+
+  const activitySummary = useMemo(() => {
+    const income = filteredTransactions.reduce(
+      (sum, transaction) => sum + getReportIncomeAmount(transaction),
+      0
+    );
+    const expense = filteredTransactions.reduce(
+      (sum, transaction) => sum + getSpendingAmount(transaction),
+      0
+    );
+
+    return {
+      expense,
+      income,
+      total: income - expense
+    };
+  }, [filteredTransactions]);
 
   function openCreateModal() {
     setEditingTransaction(null);
@@ -496,6 +515,23 @@ export default function TransactionsPage({ onNavigate }) {
             />
           </div>
         )}
+
+        <div className="activity-filter-summary" aria-live="polite">
+          <div>
+            <span>Income</span>
+            <strong className="amount-positive">{formatCurrency(activitySummary.income)}</strong>
+          </div>
+          <div>
+            <span>Expense</span>
+            <strong className="amount-negative">{formatCurrency(activitySummary.expense)}</strong>
+          </div>
+          <div>
+            <span>Total</span>
+            <strong className={activitySummary.total < 0 ? 'amount-negative' : 'amount-positive'}>
+              {formatCurrency(activitySummary.total)}
+            </strong>
+          </div>
+        </div>
       </section>
 
       <article className="panel activity-list-panel">
