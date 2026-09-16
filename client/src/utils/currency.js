@@ -6,7 +6,7 @@ export const supportedCurrencies = [
   { code: 'EUR', symbol: '€', name: 'Euro' },
   { code: 'GBP', symbol: '£', name: 'British pound' },
   { code: 'JPY', symbol: '¥', name: 'Japanese yen' },
-  { code: 'CNY', symbol: 'CN¥', name: 'Chinese yuan' },
+  { code: 'CNY', symbol: '¥', name: 'Chinese yuan' },
   { code: 'SGD', symbol: 'S$', name: 'Singapore dollar' },
   { code: 'MYR', symbol: 'RM', name: 'Malaysian ringgit' },
   { code: 'THB', symbol: '฿', name: 'Thai baht' },
