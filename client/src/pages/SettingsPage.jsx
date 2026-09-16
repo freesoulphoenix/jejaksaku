@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext.jsx';
+import { getCurrency, saveCurrency, supportedCurrencies } from '../utils/currency.js';
+import { formatCurrency } from '../utils/format.js';
 import { getAccounts } from '../services/accountService.js';
 import { createCategory, deleteCategory, getCategories, updateCategory, updateCategoryOrder } from '../services/categoryService.js';
 import { createProjectTag, deleteProjectTag, getProjectTags, updateProjectTag } from '../services/projectTagService.js';
@@ -164,6 +166,9 @@ function groupCategories(categories) {
 
 export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const { language, setLanguage, supportedLanguages } = useLanguage();
+  const [currency, setCurrency] = useState(() => getCurrency().code);
+  const [currencyMessage, setCurrencyMessage] = useState('');
+  const [currencyError, setCurrencyError] = useState('');
   const [accounts, setAccounts] = useState([]);
   const [currentProfile, setCurrentProfile] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -813,6 +818,32 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <h2>Account</h2>
           </div>
           <p className="muted-copy">{user?.email}</p>
+          <label className="field-group">
+            Currency symbol
+            <select
+              value={currency}
+              onChange={(event) => {
+                setCurrencyMessage('');
+                setCurrencyError('');
+                try {
+                  saveCurrency(event.target.value);
+                  setCurrency(event.target.value);
+                  setCurrencyMessage('Currency preference saved.');
+                } catch {
+                  setCurrencyError('Unable to save your currency preference. Please try again.');
+                }
+              }}
+            >
+              {supportedCurrencies.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.symbol} — {option.code} · {option.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="muted-copy">Example: {formatCurrency(125000)}. Saved in this browser. Changes the displayed symbol without converting amounts.</p>
+          {currencyMessage && <p className="form-message success compact-message" role="status">{currencyMessage}</p>}
+          {currencyError && <p className="form-message error compact-message" role="alert">{currencyError}</p>}
           <label className="field-group">
             Default transaction source
             <select

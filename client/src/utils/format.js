@@ -1,7 +1,9 @@
+import { getCurrency } from './currency.js';
+
 export function formatCurrency(value) {
   const sign = value < 0 ? '-' : '';
   const absolute = Math.abs(Math.round(value));
-  return `${sign}Rp ${absolute.toLocaleString('id-ID')}`;
+  return `${sign}${getCurrency().symbol} ${absolute.toLocaleString('id-ID')}`;
 }
 
 export function parseCurrencyInput(value) {
@@ -10,20 +12,21 @@ export function parseCurrencyInput(value) {
 }
 
 export function formatShortCurrency(value) {
+  const { symbol } = getCurrency();
   const sign = value < 0 ? '-' : '';
   const absolute = Math.abs(value);
 
   if (absolute >= 1_000_000_000) {
-    return `${sign}Rp ${(absolute / 1_000_000_000).toFixed(1)}M`;
+    return `${sign}${symbol} ${(absolute / 1_000_000_000).toFixed(1)}M`;
   }
 
   if (absolute >= 1_000_000) {
-    return `${sign}Rp ${(absolute / 1_000_000).toFixed(1)}jt`;
+    return `${sign}${symbol} ${(absolute / 1_000_000).toFixed(1)}jt`;
   }
 
   if (absolute >= 1_000) {
-    return `${sign}Rp ${(absolute / 1_000).toFixed(0)}rb`;
+    return `${sign}${symbol} ${(absolute / 1_000).toFixed(0)}rb`;
   }
 
-  return `${sign}Rp ${absolute}`;
+  return `${sign}${symbol} ${absolute}`;
 }
