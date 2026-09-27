@@ -3,7 +3,7 @@ import { getCurrency } from './currency.js';
 export function formatCurrency(value) {
   const sign = value < 0 ? '-' : '';
   const absolute = Math.abs(value);
-  return `${sign}${getCurrency().symbol} ${absolute.toLocaleString('id-ID', {
+  return `${sign}${getCurrency().symbol} ${absolute.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`;
@@ -11,8 +11,8 @@ export function formatCurrency(value) {
 
 export function parseCurrencyInput(value) {
   if (typeof value === 'number') return value;
-  // Match the Indonesian separators used by formatCurrency: 1.234,56.
-  const normalized = String(value || '').replace(/[^\d,-]/g, '').replace(',', '.');
+  // Match the separators used by formatCurrency: 1,234.56.
+  const normalized = String(value || '').replace(/[^\d.-]/g, '');
   return Number(normalized || 0);
 }
 
