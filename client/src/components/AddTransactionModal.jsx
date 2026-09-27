@@ -205,6 +205,8 @@ export default function AddTransactionModal({
               required
               type="number"
               value={form.amount}
+              step="0.01"
+              inputMode="decimal"
             />
           </label>
           {isTransfer ? (
@@ -251,6 +253,8 @@ export default function AddTransactionModal({
                   placeholder="0"
                   type="number"
                   value={form.transfer_fee}
+                  step="0.01"
+                  inputMode="decimal"
                 />
               </label>
             </>

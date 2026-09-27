@@ -2,13 +2,18 @@ import { getCurrency } from './currency.js';
 
 export function formatCurrency(value) {
   const sign = value < 0 ? '-' : '';
-  const absolute = Math.abs(Math.round(value));
-  return `${sign}${getCurrency().symbol} ${absolute.toLocaleString('id-ID')}`;
+  const absolute = Math.abs(value);
+  return `${sign}${getCurrency().symbol} ${absolute.toLocaleString('id-ID', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
 }
 
 export function parseCurrencyInput(value) {
-  const digits = String(value || '').replace(/[^\d]/g, '');
-  return Number(digits || 0);
+  if (typeof value === 'number') return value;
+  // Match the Indonesian separators used by formatCurrency: 1.234,56.
+  const normalized = String(value || '').replace(/[^\d,-]/g, '').replace(',', '.');
+  return Number(normalized || 0);
 }
 
 export function formatShortCurrency(value) {

@@ -3,7 +3,7 @@ import BoundedDatePicker from '../components/BoundedDatePicker.jsx';
 import { findSmartMatch } from '../services/matchingService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { earliestHistoricalDate, getLocalIsoDate } from '../utils/dateBounds.js';
-import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
+import { formatCurrency } from '../utils/format.js';
 
 const today = getLocalIsoDate();
 
@@ -230,10 +230,12 @@ export default function ReceiptDetailPage({
             <label className="field-group">
               Total Amount
               <input
-                inputMode="numeric"
-                onChange={(event) => updateField('total_amount', parseCurrencyInput(event.target.value))}
-                type="text"
-                value={formatCurrency(form.total_amount || 0)}
+                inputMode="decimal"
+                onChange={(event) => updateField('total_amount', event.target.value)}
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.total_amount}
               />
             </label>
 
