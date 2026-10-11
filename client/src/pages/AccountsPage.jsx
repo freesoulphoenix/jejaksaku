@@ -349,9 +349,8 @@ export default function AccountsPage() {
           <div className="panel-header">
             <h2>{editingAccountId ? 'Edit Account' : 'Add Account'}</h2>
             {editingAccountId && <button className="secondary-button" type="button" onClick={() => {
-              const preferences = getCurrencyPreferences();
-              const currency = form.currency_code === preferences.secondary ? preferences.primary : preferences.secondary;
-              setForm({ ...emptyForm, type: form.type, bank_name: form.bank_name || form.name, name: form.name, currency_code: currency });
+              const currency = getCurrencyPreferences().secondary;
+              setForm({ ...emptyForm, type: form.type, bank_name: form.bank_name || form.name, name: (form.bank_name || form.name) + ' ' + currency, currency_code: currency });
               setEditingAccountId(null);
             }}>Add another currency balance</button>}
 

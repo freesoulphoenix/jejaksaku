@@ -51,9 +51,6 @@ function normalizeTransaction(transaction, userProfileId) {
     rate_updated_at: originalAmount != null && transaction.rate_mode === 'automatic' ? transaction.rate_updated_at || null : null,
     account_amount: transaction.account_amount === '' || transaction.account_amount == null ? (originalAmount ?? amount) : Number(transaction.account_amount),
     destination_amount: transactionType === 'transfer' && transaction.destination_amount !== '' && transaction.destination_amount != null ? Number(transaction.destination_amount) : null,
-    transfer_exchange_rate: transactionType === 'transfer' && transaction.transfer_exchange_rate ? Number(transaction.transfer_exchange_rate) : null,
-    transfer_rate_mode: transactionType === 'transfer' ? transaction.transfer_rate_mode || null : null,
-    transfer_rate_updated_at: transactionType === 'transfer' && transaction.transfer_rate_mode === 'automatic' ? transaction.transfer_rate_updated_at || null : null,
     description: transaction.description || null,
     transaction_date: transaction.transaction_date,
     notes: transaction.notes || null,
@@ -168,9 +165,9 @@ export async function getTransactions() {
       .from('transactions')
       .select(`
         *,
-        accounts:account_id (id, name, type, currency_code),
-        from_account:from_account_id (id, name, type, currency_code),
-        to_account:to_account_id (id, name, type, currency_code),
+        accounts:account_id (id, name, type),
+        from_account:from_account_id (id, name, type),
+        to_account:to_account_id (id, name, type),
         categories:category_id (id, name, type),
         project_tags:project_tag_id (id, name),
         receipt:receipt_id (id, merchant_name, receipt_date),

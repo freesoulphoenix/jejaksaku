@@ -76,7 +76,7 @@ async function seedUserDefaults(client, userProfileId) {
         type
       })), {
         ignoreDuplicates: true,
-        onConflict: 'user_profile_id,name,currency_code'
+        onConflict: 'user_profile_id,name'
       });
 
     if (error) {
