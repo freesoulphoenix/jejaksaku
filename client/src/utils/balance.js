@@ -1,5 +1,5 @@
 export function getTransactionAccountDeltas(transaction) {
-  const amount = Math.abs(Number(transaction.amount || 0));
+  const amount = Math.abs(Number(transaction.account_amount ?? transaction.amount ?? 0));
   const fee = Math.abs(Number(transaction.transfer_fee || 0));
 
   if (transaction.transaction_type === 'income') {
@@ -13,7 +13,7 @@ export function getTransactionAccountDeltas(transaction) {
   if (transaction.transaction_type === 'transfer') {
     return [
       { accountId: transaction.from_account_id || transaction.account_id, amount: -(amount + fee) },
-      { accountId: transaction.to_account_id, amount }
+      { accountId: transaction.to_account_id, amount: Math.abs(Number(transaction.destination_amount ?? amount)) }
     ];
   }
 

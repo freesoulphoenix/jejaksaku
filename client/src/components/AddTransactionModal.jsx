@@ -1,3 +1,5 @@
+import TransactionCurrencyFields from './TransactionCurrencyFields.jsx';
+import { getCurrencyPreferences } from '../utils/currency.js';
 import { useMemo, useState } from 'react';
 import BoundedDatePicker from './BoundedDatePicker.jsx';
 import { getCategoryOptions, getTransactionCategoryType } from '../utils/categoryOptions.js';
@@ -19,6 +21,14 @@ function getInitialForm(transaction, defaultAccountId = '') {
     transaction_type: transaction?.transaction_type || 'expense',
     financial_activity: transaction?.financial_activity || 'standard',
     amount: transaction?.amount || 0,
+    primary_currency: transaction?.primary_currency || getCurrencyPreferences().primary,
+    original_currency: transaction?.original_currency || '',
+    original_amount: transaction?.original_amount ?? '',
+    exchange_rate: transaction?.exchange_rate ?? '',
+    rate_mode: transaction?.rate_mode || 'manual',
+    rate_updated_at: transaction?.rate_updated_at || null,
+    account_amount: transaction?.account_amount ?? '',
+    destination_amount: transaction?.destination_amount ?? '',
     account_id: transaction?.account_id || (!transaction ? defaultAccountId : ''),
     from_account_id: transaction?.from_account_id || transaction?.account_id || (!transaction ? defaultAccountId : ''),
     to_account_id: transaction?.to_account_id || '',
@@ -198,13 +208,14 @@ export default function AddTransactionModal({
             </select>
           </label>
           <label className="field-group">
-            Amount
+            Primary amount ({form.primary_currency})
             <input
               onChange={(event) => updateField('amount', event.target.value)}
               placeholder="0"
-              required
+              required={!form.original_amount}
               type="number"
-              value={form.amount}
+              readOnly={Boolean(form.original_amount)}
+              value={form.original_amount ? Number(form.original_amount) * Number(form.exchange_rate || (form.original_currency === form.primary_currency ? 1 : 0)) : form.amount}
               step="0.01"
               inputMode="decimal"
             />
@@ -220,7 +231,7 @@ export default function AddTransactionModal({
                 >
                   <option value="">Select source account</option>
                   {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>{account.name}</option>
+                    <option key={account.id} value={account.id}>{account.name} ({account.currency_code || 'IDR'})</option>
                   ))}
                 </select>
               </label>
@@ -233,7 +244,7 @@ export default function AddTransactionModal({
                 >
                   <option value="">Select destination account</option>
                   {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>{account.name}</option>
+                    <option key={account.id} value={account.id}>{account.name} ({account.currency_code || 'IDR'})</option>
                   ))}
                 </select>
               </label>
@@ -269,7 +280,7 @@ export default function AddTransactionModal({
                 >
                   <option value="">Select account</option>
                   {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>{account.name}</option>
+                    <option key={account.id} value={account.id}>{account.name} ({account.currency_code || 'IDR'})</option>
                   ))}
                 </select>
               </label>
@@ -288,6 +299,7 @@ export default function AddTransactionModal({
               </label>
             </>
           )}
+          <TransactionCurrencyFields form={form} setForm={setForm} accounts={accounts} editing={Boolean(transaction)} />
           <label className="field-group">
             Project Tag
             <select

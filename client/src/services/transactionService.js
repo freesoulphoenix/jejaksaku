@@ -1,3 +1,7 @@
+import { getTransactionAccountDeltas } from '../utils/balance.js';
+import { resolveAccountAmounts } from '../utils/transactionCurrency.js';
+import { getExchangeRate } from './exchangeRateService.js';
+import { getCurrencyPreferences } from '../utils/currency.js';
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
 import { getTransactionCategoryType } from '../utils/categoryOptions.js';
@@ -20,7 +24,11 @@ async function getScopedQuery() {
 
 function normalizeTransaction(transaction, userProfileId) {
   const transactionType = transaction.transaction_type;
-  const amount = Math.abs(Number(transaction.amount || 0));
+  const originalAmount = transaction.original_amount === '' || transaction.original_amount == null ? null : Number(transaction.original_amount);
+  const primary = transaction.primary_currency || getCurrencyPreferences().primary;
+  const originalCurrency = transaction.original_currency || primary;
+  const rate = originalCurrency === primary ? 1 : Number(transaction.exchange_rate);
+  const amount = originalAmount == null ? Math.abs(Number(transaction.amount || 0)) : originalAmount * rate;
   const fromAccountId = transaction.from_account_id || (transactionType === 'transfer' ? transaction.account_id : null) || null;
   const toAccountId = transaction.to_account_id || null;
 
@@ -35,6 +43,14 @@ function normalizeTransaction(transaction, userProfileId) {
     imported_transaction_id: transaction.imported_transaction_id || null,
     transaction_type: transactionType,
     amount,
+    primary_currency: primary,
+    original_currency: originalAmount == null ? null : originalCurrency,
+    original_amount: originalAmount,
+    exchange_rate: originalAmount == null ? null : rate,
+    rate_mode: originalAmount == null ? null : transaction.rate_mode || 'manual',
+    rate_updated_at: originalAmount != null && transaction.rate_mode === 'automatic' ? transaction.rate_updated_at || null : null,
+    account_amount: transaction.account_amount === '' || transaction.account_amount == null ? (originalAmount ?? amount) : Number(transaction.account_amount),
+    destination_amount: transactionType === 'transfer' && transaction.destination_amount !== '' && transaction.destination_amount != null ? Number(transaction.destination_amount) : null,
     description: transaction.description || null,
     transaction_date: transaction.transaction_date,
     notes: transaction.notes || null,
@@ -50,7 +66,7 @@ function validateTransaction(transaction) {
     throw new Error('Transaction type is required.');
   }
 
-  if (!Number(transaction.amount || 0)) {
+  if (!Number.isFinite(transaction.amount) || transaction.amount <= 0 || (transaction.original_amount != null && (!Number.isFinite(transaction.exchange_rate) || transaction.exchange_rate <= 0))) {
     throw new Error('Amount is required.');
   }
 
@@ -75,6 +91,16 @@ function validateTransaction(transaction) {
   }
 }
 
+async function resolveTransactionAccounts(client, userProfileId, payload) {
+  const ids = [...new Set([payload.account_id, payload.from_account_id, payload.to_account_id].filter(Boolean))];
+  const { data, error } = await client.from('accounts').select('id, currency_code').eq('user_profile_id', userProfileId).in('id', ids);
+  if (error) throw error;
+  const source = data.find((account) => account.id === payload.account_id);
+  const destination = data.find((account) => account.id === payload.to_account_id);
+  if (!source || (payload.transaction_type === 'transfer' && !destination)) throw new Error('Selected account is unavailable.');
+  return resolveAccountAmounts(payload, source, destination);
+}
+
 function addDelta(deltas, accountId, amount) {
   if (!accountId || !amount) {
     return;
@@ -85,18 +111,7 @@ function addDelta(deltas, accountId, amount) {
 
 function getBalanceDeltas(transaction, multiplier = 1) {
   const deltas = new Map();
-  const amount = Math.abs(Number(transaction.amount || 0));
-  const fee = Math.abs(Number(transaction.transfer_fee || 0));
-
-  if (transaction.transaction_type === 'income') {
-    addDelta(deltas, transaction.account_id, amount * multiplier);
-  } else if (transaction.transaction_type === 'expense') {
-    addDelta(deltas, transaction.account_id, -amount * multiplier);
-  } else if (transaction.transaction_type === 'transfer') {
-    addDelta(deltas, transaction.from_account_id || transaction.account_id, -(amount + fee) * multiplier);
-    addDelta(deltas, transaction.to_account_id, amount * multiplier);
-  }
-
+  getTransactionAccountDeltas(transaction).forEach(({accountId, amount}) => addDelta(deltas, accountId, amount * multiplier));
   return deltas;
 }
 
@@ -181,7 +196,10 @@ export async function getTransactions() {
     from += pageSize;
   }
 
-  return rows;
+  const primary = getCurrencyPreferences().primary;
+  const currencies = [...new Set(rows.map((row) => row.primary_currency || 'IDR'))];
+  const rates = new Map(await Promise.all(currencies.map(async (code) => [code, await getExchangeRate(code, primary).then((data) => data.rate).catch(() => NaN)])));
+  return rows.map((row) => ({ ...row, report_amount: Number(row.amount) * rates.get(row.primary_currency || 'IDR'), report_transfer_fee: Number(row.primary_transfer_fee ?? row.transfer_fee ?? 0) * rates.get(row.primary_currency || 'IDR') }));
 }
 
 export async function unlinkTransactionFromStatement(id) {
@@ -247,8 +265,9 @@ export async function unlinkTransactionFromStatement(id) {
 
 export async function createTransaction(transaction) {
   const { client, userProfileId } = await getScopedQuery();
-  const payload = normalizeTransaction(transaction, userProfileId);
+  let payload = normalizeTransaction(transaction, userProfileId);
   validateTransaction(payload);
+  payload = await resolveTransactionAccounts(client, userProfileId, payload);
 
   const { data, error } = await client
     .from('transactions')
@@ -266,8 +285,10 @@ export async function createTransaction(transaction) {
 
 export async function updateTransaction(id, transaction) {
   const { client, userProfileId } = await getScopedQuery();
-  const { user_profile_id, ...payload } = normalizeTransaction(transaction, userProfileId);
+  const { user_profile_id, ...normalized } = normalizeTransaction(transaction, userProfileId);
+  let payload = normalized;
   validateTransaction(payload);
+  payload = await resolveTransactionAccounts(client, userProfileId, payload);
 
   const { data: existing, error: existingError } = await client
     .from('transactions')

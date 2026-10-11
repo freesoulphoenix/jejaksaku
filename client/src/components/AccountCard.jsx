@@ -123,17 +123,17 @@ export default function AccountCard({
           </button>
 
           <div className="account-row-main">
-            <strong>{account.name}</strong>
+            <strong>{account.bank_name ? `${account.bank_name} — ${account.name}` : account.name} ({account.currency_code || 'IDR'})</strong>
 
             <small>
               {showCreditMetrics
-                ? `${Math.round(creditMetrics.utilizationPercent)}% used · ${formatCurrency(creditMetrics.availableCredit)} available`
+                ? `${Math.round(creditMetrics.utilizationPercent)}% used · ${formatCurrency(creditMetrics.availableCredit, account.currency_code || 'IDR')} available`
                 : (
                   <>
-                    Calculated: {formatCurrency(calculatedBalance)}
+                    Calculated: {formatCurrency(calculatedBalance, account.currency_code || 'IDR')}
                     {' - '}
                     <span className={differenceClassName}>
-                      Difference: {formatCurrency(difference)}
+                      Difference: {formatCurrency(difference, account.currency_code || 'IDR')}
                     </span>
                   </>
                 )}
@@ -149,7 +149,7 @@ export default function AccountCard({
                 .filter(Boolean)
                 .join(' ')}
             >
-              {formatCurrency(displayBalance)}
+              {formatCurrency(displayBalance, account.currency_code || 'IDR')}
             </strong>
 
             <button
@@ -195,17 +195,17 @@ export default function AccountCard({
         <h2>{account.name}</h2>
       </div>
       <strong className={Number(reconciledBalance) < 0 ? 'amount-negative' : ''}>
-        {formatCurrency(displayBalance)}
+        {formatCurrency(displayBalance, account.currency_code || 'IDR')}
       </strong>
       <div className="account-balance-detail">
         {showCreditMetrics && (
           <>
-            <span>{Math.round(creditMetrics.utilizationPercent)}% of {formatCurrency(creditMetrics.creditLimit)} used</span>
-            <span>{formatCurrency(creditMetrics.availableCredit)} available</span>
+            <span>{Math.round(creditMetrics.utilizationPercent)}% of {formatCurrency(creditMetrics.creditLimit, account.currency_code || 'IDR')} used</span>
+            <span>{formatCurrency(creditMetrics.availableCredit, account.currency_code || 'IDR')} available</span>
           </>
         )}
-        <span>Calculated: {formatCurrency(calculatedBalance)}</span>
-        <span className={differenceClassName}>Difference: {formatCurrency(difference)}</span>
+        <span>Calculated: {formatCurrency(calculatedBalance, account.currency_code || 'IDR')}</span>
+        <span className={differenceClassName}>Difference: {formatCurrency(difference, account.currency_code || 'IDR')}</span>
         {account.last_reconciled_at && (
           <span>Last reconciled: {new Date(account.last_reconciled_at).toLocaleDateString('id-ID')}</span>
         )}

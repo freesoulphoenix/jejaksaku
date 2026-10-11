@@ -42,3 +42,21 @@ export function saveCurrency(code) {
   }
   localStorage.setItem(storageKey, code);
 }
+
+export function getCurrencyPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('jejaksaku_currency_preferences') || '{}');
+    return { primary: getCurrency().code, secondary: 'CNY', formats: {}, ...saved };
+  } catch {
+    return { primary: getCurrency().code, secondary: 'CNY', formats: {} };
+  }
+}
+
+export function saveCurrencyPreferences(preferences) {
+  saveCurrency(preferences.primary);
+  localStorage.setItem('jejaksaku_currency_preferences', JSON.stringify(preferences));
+}
+
+export function getCurrencyFormat(code) {
+  return { position: 'front', decimals: 2, ...getCurrencyPreferences().formats[code] };
+}

@@ -1,3 +1,5 @@
+import { getCurrencyPreferences } from '../utils/currency.js';
+import { getExchangeRate } from './exchangeRateService.js';
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
 import { creditFacilityTypes } from '../utils/creditFacility.js';
@@ -51,7 +53,10 @@ export async function getAccounts() {
     throw error;
   }
 
-  return data;
+  const primary = getCurrencyPreferences().primary;
+  const currencies = [...new Set(data.map((account) => account.currency_code || 'IDR'))];
+  const rates = new Map(await Promise.all(currencies.map(async (code) => [code, await getExchangeRate(code, primary).then((data) => data.rate).catch(() => NaN)])));
+  return data.map((account) => ({ ...account, primary_balance: Number(account.balance || 0) * rates.get(account.currency_code || 'IDR') }));
 }
 
 export async function createAccount(account) {
@@ -71,9 +76,11 @@ export async function createAccount(account) {
     .insert({
       user_profile_id: userProfileId,
       name: account.name,
+      bank_name: account.bank_name || null,
+      currency_code: account.currency_code || getCurrencyPreferences().primary,
       type: account.type,
       balance,
-      opening_balance: balance,
+      opening_balance: creditFacilityTypes.has(account.type) ? -Math.abs(Number(account.opening_balance ?? balance)) : Number(account.opening_balance ?? balance),
       sort_order: sortOrder,
       status: account.status || 'active',
       credit_limit: account.credit_limit ? Number(account.credit_limit) : null,
@@ -106,6 +113,7 @@ export async function updateAccount(id, account) {
     throw existingError;
   }
 
+  if (account.currency_code && account.currency_code !== existing.currency_code) throw new Error('Create a separate balance for a different currency.');
   const enteredBalance = Number(account.balance || 0);
   const nextBalance = creditFacilityTypes.has(account.type)
     ? -Math.abs(enteredBalance)

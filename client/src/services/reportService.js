@@ -91,7 +91,7 @@ function buildMonthlySeries(transactions) {
 }
 
 function buildNetWorthTrend(accounts, monthlySeries) {
-  const currentNetWorth = accounts.reduce((sum, account) => sum + Number(account.reconciled_balance ?? account.balance ?? 0), 0);
+  const currentNetWorth = accounts.reduce((sum, account) => sum + Number(account.primary_balance ?? NaN), 0);
   let runningNetWorth = currentNetWorth - monthlySeries.reduce((sum, item) => sum + item.cashFlow, 0);
 
   return monthlySeries.map((item) => {
@@ -135,10 +135,10 @@ export async function getReportData(filters = {}) {
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const assets = accountsWithBalances
     .filter((account) => assetTypes.has(account.type))
-    .reduce((sum, account) => sum + Number(account.reconciled_balance || 0), 0);
+    .reduce((sum, account) => sum + Number(account.primary_balance ?? NaN), 0);
   const liabilities = accountsWithBalances
     .filter((account) => liabilityTypes.has(account.type))
-    .reduce((sum, account) => sum + Math.abs(Number(account.reconciled_balance || 0)), 0);
+    .reduce((sum, account) => sum + Math.abs(Number(account.primary_balance ?? NaN)), 0);
 
   return {
     accounts: accountsWithBalances,

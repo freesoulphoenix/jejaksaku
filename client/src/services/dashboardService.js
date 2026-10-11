@@ -86,11 +86,11 @@ export async function getDashboardData() {
 
   const assets = accountsWithBalances
     .filter((account) => assetTypes.has(account.type))
-    .reduce((sum, account) => sum + Number(account.reconciled_balance || 0), 0);
+    .reduce((sum, account) => sum + Number(account.primary_balance ?? NaN), 0);
 
   const debt = accountsWithBalances
     .filter((account) => debtTypes.has(account.type))
-    .reduce((sum, account) => sum + Math.abs(Number(account.reconciled_balance || 0)), 0);
+    .reduce((sum, account) => sum + Math.abs(Number(account.primary_balance ?? NaN)), 0);
 
   const today = startOfToday();
   const week = startOfWeek();

@@ -89,14 +89,14 @@ export function classifyCreditStatementRow(row, sourceAccount) {
 }
 
 export function getSpendingAmount(transaction) {
-  const amount = Math.abs(Number(transaction.amount || 0));
+  const amount = Math.abs(Number(transaction.report_amount ?? transaction.amount ?? 0));
 
   if (transaction.financial_activity === 'refund') {
     return -amount;
   }
 
   if (transaction.transaction_type === 'transfer') {
-    return Math.abs(Number(transaction.transfer_fee || 0));
+    return Math.abs(Number(transaction.report_transfer_fee ?? transaction.primary_transfer_fee ?? transaction.transfer_fee ?? 0));
   }
 
   return transaction.transaction_type === 'expense' ? amount : 0;
@@ -108,6 +108,6 @@ export function getReportIncomeAmount(transaction) {
   }
 
   return transaction.transaction_type === 'income'
-    ? Math.abs(Number(transaction.amount || 0))
+    ? Math.abs(Number(transaction.report_amount ?? transaction.amount ?? 0))
     : 0;
 }

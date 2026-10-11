@@ -140,14 +140,14 @@ function getAmountLabel(transaction) {
   const amount = Math.abs(Number(transaction.amount || 0));
 
   if (type === 'expense') {
-    return `-${formatCurrency(amount)}`;
+    return `-${formatCurrency(amount, transaction.primary_currency || 'IDR')}`;
   }
 
   if (type === 'income') {
-    return `+${formatCurrency(amount)}`;
+    return `+${formatCurrency(amount, transaction.primary_currency || 'IDR')}`;
   }
 
-  return formatCurrency(amount);
+  return formatCurrency(amount, transaction.primary_currency || 'IDR');
 }
 
 function getAmountClassName(transaction) {
@@ -243,6 +243,7 @@ function ActivityTransactionList({
                   <strong>{getTransactionTitle(transaction)}</strong>
                 </div>
                 <small>{subtitle}</small>
+                {transaction.original_amount != null && <small>{formatCurrency(transaction.original_amount, transaction.original_currency)} · rate {transaction.exchange_rate}</small>}
                 {linkLabel && <TransactionLinkBadge label={linkLabel} />}
               </div>
 
@@ -372,7 +373,7 @@ function DashboardTransactionList({
             <div className="transaction-meta">
               <strong className={getDisplayAmount(transaction) < 0 ? 'amount-negative' : 'amount-positive'}>
                 {getDisplayAmount(transaction) > 0 && getTransactionType(transaction) !== 'transfer' ? '+' : ''}
-                {formatCurrency(getDisplayAmount(transaction))}
+                {formatCurrency(getDisplayAmount(transaction), transaction.primary_currency || 'IDR')}
               </strong>
               <span>{formatDisplayDate(transaction.transaction_date) || transaction.date}</span>
               {(onDelete || onEdit) && !revealDeleteMode && (

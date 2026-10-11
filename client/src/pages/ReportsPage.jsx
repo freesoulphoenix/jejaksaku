@@ -232,7 +232,11 @@ export default function ReportsPage() {
       Account: getTransactionAccountName(transaction),
       Category: transaction.categories?.name || '',
       'Project Tag': transaction.project_tags?.name || '',
-      Amount: Number(transaction.amount || 0)
+      Amount: Number(transaction.amount || 0),
+      Currency: transaction.primary_currency || 'IDR',
+      'Original Amount': transaction.original_amount ?? '',
+      'Original Currency': transaction.original_currency || '',
+      'Exchange Rate': transaction.exchange_rate ?? ''
     }));
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(worksheetRows);
@@ -281,7 +285,7 @@ export default function ReportsPage() {
                   <td>${getTransactionAccountName(transaction)}</td>
                   <td>${transaction.categories?.name || ''}</td>
                   <td>${transaction.project_tags?.name || ''}</td>
-                  <td>${formatCurrency(transaction.amount || 0)}</td>
+                  <td>${formatCurrency(transaction.amount || 0, transaction.primary_currency || 'IDR')}</td>
                 </tr>
               `).join('')}
             </tbody>

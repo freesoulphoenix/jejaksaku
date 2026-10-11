@@ -1,12 +1,15 @@
-import { getCurrency } from './currency.js';
+import { getCurrency, getCurrencyFormat, supportedCurrencies } from './currency.js';
 
-export function formatCurrency(value) {
+export function formatCurrency(value, code = getCurrency().code) {
+  if (value == null || !Number.isFinite(Number(value))) return 'Rate unavailable';
   const sign = value < 0 ? '-' : '';
   const absolute = Math.abs(value);
-  return `${sign}${getCurrency().symbol} ${absolute.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`;
+  const { position, decimals } = getCurrencyFormat(code);
+  const symbol = supportedCurrencies.find((currency) => currency.code === code)?.symbol || code;
+  const number = absolute.toLocaleString('en-US', {
+    minimumFractionDigits: Number(decimals), maximumFractionDigits: Number(decimals)
+  });
+  return position === 'end' ? `${sign}${number} ${symbol}` : `${sign}${symbol} ${number}`;
 }
 
 export function parseCurrencyInput(value) {

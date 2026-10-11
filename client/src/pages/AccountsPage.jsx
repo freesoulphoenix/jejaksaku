@@ -1,3 +1,4 @@
+import { getCurrencyPreferences, supportedCurrencies } from '../utils/currency.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import AccountCard from '../components/AccountCard.jsx';
@@ -16,6 +17,8 @@ const accountTypes = ['Cash', 'Bank', 'E-Wallet', 'Credit Card', 'PayLater', 'Lo
 
 const emptyForm = {
   name: '',
+  currency_code: 'IDR',
+  bank_name: '',
   type: 'Bank',
   balance: 0,
   calculated_balance: 0,
@@ -146,7 +149,7 @@ export default function AccountsPage() {
   }, [pendingDeleteId]);
 
   function openCreateForm() {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, currency_code: getCurrencyPreferences().primary });
     setEditingAccountId(null);
     setPendingDeleteId('');
     setIsFormOpen(true);
@@ -155,6 +158,8 @@ export default function AccountsPage() {
   function openEditForm(account) {
     setForm({
       name: account.name,
+      currency_code: account.currency_code || 'IDR',
+      bank_name: account.bank_name || '',
       type: account.type,
       balance: creditFacilityTypes.has(account.type)
         ? Math.abs(Number(account.reconciled_balance ?? account.balance ?? 0))
@@ -186,7 +191,9 @@ export default function AccountsPage() {
   function updateField(field, value) {
     setForm((currentForm) => ({
       ...currentForm,
-      [field]: value
+      [field]: value,
+      ...(!editingAccountId && field === 'balance' ? { opening_balance: value } : {}),
+      ...(!editingAccountId && field === 'opening_balance' ? { balance: value } : {})
     }));
   }
 
@@ -336,11 +343,25 @@ export default function AccountsPage() {
         <section className="panel">
           <div className="panel-header">
             <h2>{editingAccountId ? 'Edit Account' : 'Add Account'}</h2>
+            {editingAccountId && <button className="secondary-button" type="button" onClick={() => {
+              const currency = getCurrencyPreferences().secondary;
+              setForm({ ...emptyForm, type: form.type, bank_name: form.bank_name || form.name, name: (form.bank_name || form.name) + ' ' + currency, currency_code: currency });
+              setEditingAccountId(null);
+            }}>Add another currency balance</button>}
 
             <button className="text-button" onClick={closeForm}>Cancel</button>
           </div>
 
           <form className="form-grid" onSubmit={handleSubmit}>
+            <label className="field-group">Bank / institution
+              <input value={form.bank_name} onChange={(event) => updateField('bank_name', event.target.value)} placeholder="BCA" />
+            </label>
+            <label className="field-group">Balance currency
+              <select value={form.currency_code} disabled={Boolean(editingAccountId)} onChange={(event) => updateField('currency_code', event.target.value)}>
+                {supportedCurrencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.code} — {currency.name}</option>)}
+              </select>
+            </label>
+            <p className="muted-copy span-2">Create one balance for each currency under the same bank / institution. Each has an independent opening balance. Currency is fixed after creation.</p>
             <label className="field-group">
               Name
               <input
@@ -365,24 +386,24 @@ export default function AccountsPage() {
             </label>
 
             <label className="field-group">
-              {isCreditFacilityForm ? 'Current Amount Owed' : 'Current / Reconciled Balance'}
+              {editingAccountId ? (isCreditFacilityForm ? 'Current Amount Owed' : 'Current / Reconciled Balance') : (isCreditFacilityForm ? 'Starting Amount Owed' : 'Starting Balance')} ({form.currency_code})
               <input
                 onChange={(event) => updateField('balance', event.target.value)}
                 placeholder="0"
-                type="number"
+                type="number" step="any"
                 value={form.balance}
               />
             </label>
 
-            <label className="field-group">
-              {isCreditFacilityForm ? 'Opening Amount Owed' : 'Opening Balance'}
+            {editingAccountId && <label className="field-group">
+              {isCreditFacilityForm ? 'Opening Amount Owed' : 'Opening Balance'} ({form.currency_code})
               <input
                 onChange={(event) => updateField('opening_balance', event.target.value)}
                 placeholder="0"
-                type="number"
+                type="number" step="any"
                 value={form.opening_balance}
               />
-            </label>
+            </label>}
 
             {isCreditFacilityForm && (
               <>
