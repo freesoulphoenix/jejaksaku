@@ -12,11 +12,30 @@ alter table public.transactions
   add column if not exists account_amount numeric,
   add column if not exists destination_amount numeric,
   add column if not exists primary_transfer_fee numeric;
-alter table public.transactions add constraint transactions_fx_positive check (
-  (exchange_rate is null or exchange_rate > 0) and
-  (original_amount is null or original_amount > 0) and
-  (account_amount is null or account_amount > 0) and
-  (destination_amount is null or destination_amount > 0)
-);
-alter table public.transactions add constraint transactions_rate_mode check (rate_mode is null or rate_mode in ('automatic', 'manual'));
+-- Columns and constraints may already exist when this migration is rerun.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.transactions'::regclass
+      and conname = 'transactions_fx_positive'
+  ) then
+    alter table public.transactions add constraint transactions_fx_positive check (
+      (exchange_rate is null or exchange_rate > 0) and
+      (original_amount is null or original_amount > 0) and
+      (account_amount is null or account_amount > 0) and
+      (destination_amount is null or destination_amount > 0)
+    );
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.transactions'::regclass
+      and conname = 'transactions_rate_mode'
+  ) then
+    alter table public.transactions add constraint transactions_rate_mode
+      check (rate_mode is null or rate_mode in ('automatic', 'manual'));
+  end if;
+end;
+$$;
 commit;
