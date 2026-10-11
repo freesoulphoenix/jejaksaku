@@ -123,7 +123,7 @@ export default function AccountCard({
           </button>
 
           <div className="account-row-main">
-            <strong>{account.bank_name ? `${account.bank_name} — ${account.name}` : account.name} ({account.currency_code || 'IDR'})</strong>
+            <strong>{account.bank_name ? `${account.bank_name} — ${account.name}` : account.name}</strong>
 
             <small>
               {showCreditMetrics
