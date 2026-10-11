@@ -1,4 +1,7 @@
 import TransactionCurrencyFields from './TransactionCurrencyFields.jsx';
+import TransferCurrencyFields from './TransferCurrencyFields.jsx';
+import { prepareTransferCurrency } from '../utils/transactionCurrency.js';
+import { formatCurrency } from '../utils/format.js';
 import { getCurrencyPreferences } from '../utils/currency.js';
 import { useMemo, useState } from 'react';
 import BoundedDatePicker from './BoundedDatePicker.jsx';
@@ -27,8 +30,11 @@ function getInitialForm(transaction, defaultAccountId = '') {
     exchange_rate: transaction?.exchange_rate ?? '',
     rate_mode: transaction?.rate_mode || 'manual',
     rate_updated_at: transaction?.rate_updated_at || null,
-    account_amount: transaction?.account_amount ?? '',
+    account_amount: transaction?.account_amount ?? (transaction?.transaction_type === 'transfer' ? transaction.amount : ''),
     destination_amount: transaction?.destination_amount ?? '',
+    transfer_exchange_rate: transaction?.transfer_exchange_rate ?? '',
+    transfer_rate_mode: transaction?.transfer_rate_mode || 'manual',
+    transfer_rate_updated_at: transaction?.transfer_rate_updated_at || null,
     account_id: transaction?.account_id || (!transaction ? defaultAccountId : ''),
     from_account_id: transaction?.from_account_id || transaction?.account_id || (!transaction ? defaultAccountId : ''),
     to_account_id: transaction?.to_account_id || '',
@@ -68,6 +74,7 @@ export default function AddTransactionModal({
   function updateField(field, value) {
     setForm((currentForm) => {
       const nextForm = { ...currentForm, [field]: value };
+      if (field === 'from_account_id' && nextForm.to_account_id === value) nextForm.to_account_id = '';
       const nextCategoryType = getTransactionCategoryType(
         nextForm.transaction_type,
         nextForm.financial_activity
@@ -94,7 +101,7 @@ export default function AddTransactionModal({
     setSaving(true);
 
     try {
-      await onSave(form);
+      await onSave(isTransfer ? prepareTransferCurrency(form, accounts, transaction) : form);
       onClose();
     } catch (err) {
       setError(err.message || 'Unable to save transaction.');
@@ -207,7 +214,7 @@ export default function AddTransactionModal({
               <option value="installment">Installment</option>
             </select>
           </label>
-          <label className="field-group">
+          {!isTransfer && <label className="field-group">
             Primary amount ({form.primary_currency})
             <input
               onChange={(event) => updateField('amount', event.target.value)}
@@ -219,7 +226,7 @@ export default function AddTransactionModal({
               step="0.01"
               inputMode="decimal"
             />
-          </label>
+          </label>}
           {isTransfer ? (
             <>
               <label className="field-group">
@@ -231,7 +238,7 @@ export default function AddTransactionModal({
                 >
                   <option value="">Select source account</option>
                   {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>{account.name}</option>
+                    <option key={account.id} value={account.id}>{account.name} — {formatCurrency(account.balance, account.currency_code || 'IDR')}</option>
                   ))}
                 </select>
               </label>
@@ -243,8 +250,8 @@ export default function AddTransactionModal({
                   value={form.to_account_id}
                 >
                   <option value="">Select destination account</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>{account.name}</option>
+                  {accounts.filter((account) => account.id !== form.from_account_id).map((account) => (
+                    <option key={account.id} value={account.id}>{account.name} — {formatCurrency(account.balance, account.currency_code || 'IDR')}</option>
                   ))}
                 </select>
               </label>
@@ -299,7 +306,9 @@ export default function AddTransactionModal({
               </label>
             </>
           )}
-          <TransactionCurrencyFields form={form} setForm={setForm} accounts={accounts} editing={Boolean(transaction)} />
+          {isTransfer
+            ? <TransferCurrencyFields form={form} setForm={setForm} accounts={accounts} editing={Boolean(transaction)} />
+            : <TransactionCurrencyFields form={form} setForm={setForm} accounts={accounts} editing={Boolean(transaction)} />}
           <label className="field-group">
             Project Tag
             <select

@@ -139,6 +139,12 @@ function getAmountLabel(transaction) {
   const type = getTransactionType(transaction);
   const amount = Math.abs(Number(transaction.amount || 0));
 
+  if (type === 'transfer' && transaction.account_amount != null && transaction.destination_amount != null) {
+    const from = transaction.from_account?.currency_code || transaction.original_currency || transaction.primary_currency || 'IDR';
+    const to = transaction.to_account?.currency_code || transaction.primary_currency || 'IDR';
+    return `${formatCurrency(transaction.account_amount, from)} → ${formatCurrency(transaction.destination_amount, to)}`;
+  }
+
   if (type === 'expense') {
     return `-${formatCurrency(amount, transaction.primary_currency || 'IDR')}`;
   }
@@ -243,7 +249,7 @@ function ActivityTransactionList({
                   <strong>{getTransactionTitle(transaction)}</strong>
                 </div>
                 <small>{subtitle}</small>
-                {transaction.original_amount != null && <small>{formatCurrency(transaction.original_amount, transaction.original_currency)} · rate {transaction.exchange_rate}</small>}
+                {transaction.transaction_type !== 'transfer' && transaction.original_amount != null && <small>{formatCurrency(transaction.original_amount, transaction.original_currency)} · rate {transaction.exchange_rate}</small>}
                 {linkLabel && <TransactionLinkBadge label={linkLabel} />}
               </div>
 
@@ -373,7 +379,7 @@ function DashboardTransactionList({
             <div className="transaction-meta">
               <strong className={getDisplayAmount(transaction) < 0 ? 'amount-negative' : 'amount-positive'}>
                 {getDisplayAmount(transaction) > 0 && getTransactionType(transaction) !== 'transfer' ? '+' : ''}
-                {formatCurrency(getDisplayAmount(transaction), transaction.primary_currency || 'IDR')}
+                {getTransactionType(transaction) === 'transfer' ? getAmountLabel(transaction) : formatCurrency(getDisplayAmount(transaction), transaction.primary_currency || 'IDR')}
               </strong>
               <span>{formatDisplayDate(transaction.transaction_date) || transaction.date}</span>
               {(onDelete || onEdit) && !revealDeleteMode && (
