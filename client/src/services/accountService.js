@@ -113,7 +113,9 @@ export async function updateAccount(id, account) {
     throw existingError;
   }
 
-  if (account.currency_code && account.currency_code !== existing.currency_code) throw new Error('Create a separate balance for a different currency.');
+  if (account.currency_code && account.currency_code !== existing.currency_code) {
+    await correctAccountCurrencyLabels([id], account.currency_code);
+  }
   const enteredBalance = Number(account.balance || 0);
   const nextBalance = creditFacilityTypes.has(account.type)
     ? -Math.abs(enteredBalance)
@@ -124,6 +126,7 @@ export async function updateAccount(id, account) {
     .from('accounts')
     .update({
       name: account.name,
+      bank_name: account.bank_name || null,
       type: account.type,
       balance: nextBalance,
       opening_balance: creditFacilityTypes.has(account.type)
@@ -165,6 +168,15 @@ export async function updateAccount(id, account) {
     }
   }
 
+  return data;
+}
+
+export async function correctAccountCurrencyLabels(accountIds, currencyCode) {
+  const { client } = await getScopedQuery();
+  const { data, error } = await client.rpc('correct_account_currency_labels', {
+    account_ids: accountIds, target_currency: currencyCode
+  });
+  if (error) throw error;
   return data;
 }
 

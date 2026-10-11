@@ -815,7 +815,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
             <h2>Account</h2>
           </div>
           <p className="muted-copy">{user?.email}</p>
-          <CurrencySettings />
+          <CurrencySettings accounts={accounts} onCorrected={loadSettingsData} />
           <label className="field-group">
             Default transaction source
             <select

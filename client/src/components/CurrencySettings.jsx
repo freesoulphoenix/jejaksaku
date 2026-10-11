@@ -1,10 +1,25 @@
 import { useState } from 'react';
 import { getCurrencyPreferences, saveCurrencyPreferences, supportedCurrencies } from '../utils/currency.js';
 import { formatCurrency } from '../utils/format.js';
+import { correctAccountCurrencyLabels } from '../services/accountService.js';
 
-export default function CurrencySettings() {
+export default function CurrencySettings({ accounts = [], onCorrected }) {
   const [preferences, setPreferences] = useState(getCurrencyPreferences);
   const [error, setError] = useState('');
+  const [correcting, setCorrecting] = useState(false);
+  const [message, setMessage] = useState('');
+  const unconfirmedAccounts = accounts.filter((account) => account.currency_confirmed === false);
+  async function correctLegacyLabels() {
+    setCorrecting(true);
+    setError('');
+    setMessage('');
+    try {
+      const count = await correctAccountCurrencyLabels(unconfirmedAccounts.map((account) => account.id), preferences.primary);
+      setMessage(`Currency labels corrected to ${preferences.primary} for ${unconfirmedAccounts.length} accounts and ${count} activities. Amounts were preserved.`);
+      await onCorrected?.();
+    } catch (err) { setError(err.message || 'Unable to correct currency labels.'); }
+    finally { setCorrecting(false); }
+  }
   function update(next) {
     try { saveCurrencyPreferences(next); setPreferences(next); setError(''); }
     catch { setError('Unable to save currency preferences.'); }
@@ -30,6 +45,11 @@ export default function CurrencySettings() {
       </div>;
     })}
     <p className="muted-copy span-2">Preferences are saved in this browser. Account balances keep their own currency; transaction conversions keep their saved rate.</p>
+    {unconfirmedAccounts.length > 0 && <div className="span-2">
+      <p className="muted-copy">{unconfirmedAccounts.length} older account balances have unconfirmed currency labels. If they originally used {preferences.primary}, correct their labels together. Balances and activity amounts will stay the same. For mixed currencies, correct each account in Accounts.</p>
+      <button type="button" className="secondary-button" disabled={correcting} onClick={correctLegacyLabels}>{correcting ? 'Correcting…' : `Correct older currency labels to ${preferences.primary}`}</button>
+    </div>}
+    {message && <p role="status" className="form-message success span-2">{message}</p>}
     {error && <p className="form-message error span-2">{error}</p>}
   </section>;
 }
