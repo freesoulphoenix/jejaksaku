@@ -126,7 +126,6 @@ export async function updateAccount(id, account) {
     .from('accounts')
     .update({
       name: account.name,
-      bank_name: account.bank_name || null,
       type: account.type,
       balance: nextBalance,
       opening_balance: creditFacilityTypes.has(account.type)

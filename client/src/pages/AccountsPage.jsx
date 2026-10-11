@@ -1,5 +1,4 @@
 import { getCurrencyPreferences, supportedCurrencies } from '../utils/currency.js';
-import { canCorrectAccountCurrency } from '../utils/legacyCurrency.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import AccountCard from '../components/AccountCard.jsx';
@@ -19,8 +18,6 @@ const accountTypes = ['Cash', 'Bank', 'E-Wallet', 'Credit Card', 'PayLater', 'Lo
 const emptyForm = {
   name: '',
   currency_code: 'IDR',
-  currency_editable: true,
-  bank_name: '',
   type: 'Bank',
   balance: 0,
   calculated_balance: 0,
@@ -107,9 +104,7 @@ export default function AccountsPage() {
         getTransactions()
       ]);
 
-      setAccounts(calculateAccountBalances(accountData, transactionData).map((account) => ({
-        ...account, currency_editable: canCorrectAccountCurrency(account, transactionData)
-      })));
+      setAccounts(calculateAccountBalances(accountData, transactionData));
     } catch (err) {
       setError(err.message || 'Unable to load accounts.');
     } finally {
@@ -163,8 +158,6 @@ export default function AccountsPage() {
     setForm({
       name: account.name,
       currency_code: account.currency_code || 'IDR',
-      currency_editable: account.currency_editable,
-      bank_name: account.bank_name || '',
       type: account.type,
       balance: creditFacilityTypes.has(account.type)
         ? Math.abs(Number(account.reconciled_balance ?? account.balance ?? 0))
@@ -348,25 +341,10 @@ export default function AccountsPage() {
         <section className="panel">
           <div className="panel-header">
             <h2>{editingAccountId ? 'Edit Account' : 'Add Account'}</h2>
-            {editingAccountId && <button className="secondary-button" type="button" onClick={() => {
-              const currency = getCurrencyPreferences().secondary;
-              setForm({ ...emptyForm, type: form.type, bank_name: form.bank_name || form.name, name: (form.bank_name || form.name) + ' ' + currency, currency_code: currency });
-              setEditingAccountId(null);
-            }}>Add another currency balance</button>}
-
             <button className="text-button" onClick={closeForm}>Cancel</button>
           </div>
 
           <form className="form-grid" onSubmit={handleSubmit}>
-            <label className="field-group">Bank / institution
-              <input value={form.bank_name} onChange={(event) => updateField('bank_name', event.target.value)} placeholder="BCA" />
-            </label>
-            <label className="field-group">Balance currency
-              <select value={form.currency_code} disabled={Boolean(editingAccountId) && !form.currency_editable} onChange={(event) => updateField('currency_code', event.target.value)}>
-                {supportedCurrencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.code} — {currency.name}</option>)}
-              </select>
-            </label>
-            <p className="muted-copy span-2">Create one balance for each currency under the same bank / institution. Each has an independent opening balance. Correcting an older balance's currency label preserves all amounts. Balances with explicit currency amounts or rates need a separate currency balance.</p>
             <label className="field-group">
               Name
               <input
@@ -389,6 +367,13 @@ export default function AccountsPage() {
                 ))}
               </select>
             </label>
+
+            {!editingAccountId && <label className="field-group">
+              Currency
+              <select value={form.currency_code} onChange={(event) => updateField('currency_code', event.target.value)}>
+                {supportedCurrencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.code} — {currency.name}</option>)}
+              </select>
+            </label>}
 
             <label className="field-group">
               {editingAccountId ? (isCreditFacilityForm ? 'Current Amount Owed' : 'Current / Reconciled Balance') : (isCreditFacilityForm ? 'Starting Amount Owed' : 'Starting Balance')} ({form.currency_code})
