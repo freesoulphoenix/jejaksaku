@@ -8,7 +8,7 @@ export default function TransactionCurrencyFields({ form, setForm, accounts, edi
   const source = accounts.find((account) => account.id === (form.transaction_type === 'transfer' ? form.from_account_id : form.account_id));
   const destination = accounts.find((account) => account.id === form.to_account_id);
   const accountCurrency = source?.currency_code || 'IDR';
-  const currency = form.original_currency || accountCurrency;
+  const currency = form.original_currency || primary;
   const mode = form.rate_mode || 'manual';
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export default function TransactionCurrencyFields({ form, setForm, accounts, edi
   useEffect(() => {
     if (source && previousSource.current !== source.id) {
       previousSource.current = source.id;
-      setForm((current) => ({ ...current, original_currency: accountCurrency, original_amount: '', exchange_rate: accountCurrency === primary ? 1 : '', rate_updated_at: null, rate_mode: 'manual', account_amount: '', destination_amount: '' }));
+      setForm((current) => ({ ...current, account_amount: '', destination_amount: '' }));
     }
   }, [source?.id]);
   useEffect(() => {
@@ -52,14 +52,14 @@ export default function TransactionCurrencyFields({ form, setForm, accounts, edi
     } catch (error) { setStatus(error.message); }
     finally { setLoading(false); }
   }
-  return <section className="form-grid span-2" aria-label="Transaction currency">
+  return <section className="form-grid span-2 purchase-form-row" aria-label="Transaction currency">
     <label className="field-group">Input currency
       <select disabled={loading} value={currency} onChange={(event) => setForm((current) => ({ ...current, original_currency: event.target.value, exchange_rate: event.target.value === primary ? 1 : '', rate_updated_at: null, rate_mode: 'manual' }))}>
         {[...new Set([primary, getCurrencyPreferences().secondary, accountCurrency, currency])].map((code) => <option key={code}>{code}</option>)}
       </select>
     </label>
-    <label className="field-group">{currency === primary ? 'Original amount' : 'Secondary Currency amount'} ({currency})
-      <input type="number" min="0.00000001" step="any" required={currency !== primary || accountCurrency !== primary} value={form.original_amount ?? ''} onChange={(event) => update('original_amount', event.target.value)} placeholder="Optional when entering primary amount" />
+    <label className="field-group">Amount
+      <input type="number" min="0.00000001" step="any" required value={form.original_amount ?? ''} onChange={(event) => update('original_amount', event.target.value)} placeholder="0" />
     </label>
     {needsRate && <>
       <label className="field-group">Exchange rate mode
@@ -82,6 +82,6 @@ export default function TransactionCurrencyFields({ form, setForm, accounts, edi
     {crossTransfer && <label className="field-group">Amount received ({destination.currency_code})
       <input type="number" min="0.00000001" step="any" required value={form.destination_amount ?? ''} onChange={(event) => update('destination_amount', event.target.value)} />
     </label>}
-    <p className="muted-copy span-2">Primary value: {primary} {form.original_amount ? (Number(form.original_amount) * Number(form.exchange_rate || (currency === primary ? 1 : 0))).toLocaleString() : Number(form.amount || 0).toLocaleString()}. Account: {accountCurrency}. Transfer fees use the source account currency.</p>
+    {needsRate && <p className="muted-copy span-2">Reporting value: {primary} {form.original_amount ? (Number(form.original_amount) * Number(form.exchange_rate || 0)).toLocaleString() : Number(form.amount || 0).toLocaleString()}. Account currency: {accountCurrency}.</p>}
   </section>;
 }

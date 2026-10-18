@@ -1,3 +1,4 @@
+import { getCurrencyPreferences } from '../utils/currency.js';
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
 import { resolveMoneyDirection } from '../utils/transactionDirection.js';
@@ -113,7 +114,6 @@ export async function findDuplicateStatementImport(file, bankName = '') {
       .select('*')
       .eq('user_profile_id', userProfileId)
       .eq('file_hash', fileHash)
-      .is('file_deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -122,7 +122,7 @@ export async function findDuplicateStatementImport(file, bankName = '') {
     }
 
     if (data?.[0]) {
-      return { existing: data[0], fileHash };
+      return { existing: data[0], fileHash, exact: true };
     }
   }
 
@@ -391,6 +391,9 @@ function normalizeImportedRow(row, userProfileId, statementImportId) {
     transfer_fee: Number(row.transfer_fee || 0),
     notes: row.notes || null,
     financial_activity: row.financial_activity || 'standard',
+    input_currency: row.input_currency || getCurrencyPreferences().primary,
+    exchange_rate: row.exchange_rate === '' || row.exchange_rate == null ? null : Number(row.exchange_rate),
+    posting_date: row.posting_date || null,
     import_status: row.import_status || 'pending'
   };
 }
@@ -484,6 +487,9 @@ export async function updateImportedTransaction(id, row) {
     }),
     notes: row.notes || null,
     financial_activity: row.financial_activity || 'standard',
+    input_currency: row.input_currency || getCurrencyPreferences().primary,
+    exchange_rate: row.exchange_rate === '' || row.exchange_rate == null ? null : Number(row.exchange_rate),
+    posting_date: row.posting_date || null,
     import_status: row.import_status || 'pending'
   };
   const { data, error } = await client

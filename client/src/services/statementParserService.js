@@ -1,3 +1,5 @@
+import { detectStatementDateColumns } from '../utils/statementDates.js';
+
 const garbageKeywords = [
   'saldo awal',
   'saldo akhir',
@@ -283,7 +285,8 @@ function uniqueRows(rows) {
       row.transaction_date,
       row.clean_description || row.raw_description,
       row.amount,
-      row.transaction_type
+      row.transaction_type,
+      row.source_row_number || ''
     ].join('|');
 
     if (seen.has(key)) {
@@ -456,7 +459,7 @@ function detectColumns(headers) {
   }
 
   return {
-    date: findIndex(headers, ['date', 'tanggal', 'transactiondate', 'tanggaltransaksi', 'tgl', 'tgltransaksi', 'waktu', 'postingdate', 'valuedate']),
+    ...detectStatementDateColumns(headers),
     description: findIndex(headers, ['description', 'keterangan', 'uraian', 'deskripsi', 'merchant', 'remarks', 'transaksi', 'rinciantransaksi', 'berita', 'narrative', 'transactiondescription', 'details', 'detail', 'reference']),
     amount,
     debit,
@@ -505,7 +508,8 @@ function getNumericDateParts(value) {
 
 function inferObjectRowsDateOrder(rows) {
   for (const row of rows) {
-    const dateKey = findObjectKey(row, ['date', 'tanggal', 'transactiondate', 'tanggaltransaksi', 'tgl', 'tgltransaksi', 'postingdate', 'valuedate']);
+    const dateColumns = detectStatementDateColumns(Object.keys(row));
+    const dateKey = Object.keys(row)[dateColumns.date];
     const parts = getNumericDateParts(dateKey ? row[dateKey] : '');
 
     if (!parts) {
@@ -525,7 +529,8 @@ function inferObjectRowsDateOrder(rows) {
 }
 
 function objectRowToTransaction(row, dateOrderOverride = '') {
-  const dateKey = findObjectKey(row, ['date', 'tanggal', 'transactiondate', 'tanggaltransaksi', 'tgl', 'tgltransaksi', 'postingdate', 'valuedate']);
+  const dateColumns = detectStatementDateColumns(Object.keys(row));
+  const dateKey = Object.keys(row)[dateColumns.date];
   const descriptionKey = findObjectKey(row, ['description', 'keterangan', 'uraian', 'deskripsi', 'merchant', 'remarks', 'transaksi', 'rinciantransaksi', 'berita', 'narrative', 'transactiondescription', 'details', 'detail', 'reference']);
   const debitKey = findObjectKey(row, ['debet', 'debit', 'withdrawal', 'pengeluaran', 'mutasidebet', 'debitamount', 'amountdebit', 'withdrawalamount']);
   const creditKey = findObjectKey(row, ['credit', 'kredit', 'deposit', 'pemasukan', 'mutasikredit', 'creditamount', 'amountcredit', 'depositamount']);
@@ -551,6 +556,7 @@ function objectRowToTransaction(row, dateOrderOverride = '') {
 
   return {
     transaction_date: date,
+    posting_date: dateColumns.posting >= 0 ? normalizeDateWithOrder(row[Object.keys(row)[dateColumns.posting]], dateOrderOverride || getDateOrder(Object.keys(row)[dateColumns.posting])) : null,
     raw_description: rawDescription,
     clean_description: cleanDescription(rawDescription) || rawDescription,
     amount: Math.abs(amount),
@@ -588,6 +594,7 @@ function rowToTransaction(row, columns, headers = []) {
 
   return {
     transaction_date: date,
+    posting_date: columns.posting >= 0 ? normalizeDateWithOrder(row[columns.posting], getDateOrder(headers[columns.posting])) : null,
     raw_description: rawDescription,
     clean_description: cleanDescription(rawDescription) || rawDescription,
     amount: Math.abs(amount),

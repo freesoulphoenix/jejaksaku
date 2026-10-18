@@ -16,6 +16,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import AddTransactionModal from './components/AddTransactionModal.jsx';
 import BrandMark from './components/BrandMark.jsx';
+import PurchaseReviewHost from './components/PurchaseReviewHost.jsx';
 
 const accounts = [
   { id: 'cash', name: 'Cash', type: 'Cash', balance: 850000 },
@@ -218,6 +219,7 @@ function ProtectedApp() {
       user={user}
       onScanReceipt={handleMobileReceiptScan}
     >
+      <PurchaseReviewHost />
       <ActivePage
         onNavigate={setActivePage}
         onDeleteAccount={deleteAccount}

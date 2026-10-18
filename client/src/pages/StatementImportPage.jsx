@@ -1,9 +1,11 @@
+import ImportRowEditor from '../components/ImportRowEditor.jsx';
+import { getCurrencyPreferences } from '../utils/currency.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import BoundedDatePicker from '../components/BoundedDatePicker.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
-import { findSmartMatch } from '../services/matchingService.js';
+import { findDueMatch } from '../services/matchingService.js';
 import { getProjectTags } from '../services/projectTagService.js';
 import { getCurrentUserProfile } from '../services/userProfileService.js';
 import { parseStatementFile } from '../services/statementParserService.js';
@@ -152,6 +154,7 @@ export default function StatementImportPage() {
   const [loadingMoreRows, setLoadingMoreRows] = useState(false);
   const [bulkValues, setBulkValues] = useState(emptyBulkValues);
   const [editingIds, setEditingIds] = useState(new Set());
+  const editSnapshots = useRef(new Map());
   const [rawVisibleIds, setRawVisibleIds] = useState(new Set());
   const [pendingMatch, setPendingMatch] = useState(null);
   const [reviewCollapsed, setReviewCollapsed] = useState(false);
@@ -426,6 +429,7 @@ export default function StatementImportPage() {
   }
 
   function toggleEdit(rowId) {
+    if (!editingIds.has(rowId)) editSnapshots.current.set(rowId, { ...previewRows.find((row) => row.id === rowId) });
     setEditingIds((currentIds) => {
       const nextIds = new Set(currentIds);
 
@@ -650,7 +654,18 @@ export default function StatementImportPage() {
     try {
       const duplicate = await findDuplicateStatementImport(statementFile, importSourceName);
 
-      if (duplicate.existing) {
+      if (duplicate.exact && duplicate.existing.import_status === 'pending') {
+        resetReviewSession();
+        clearSelectedStatementFile();
+        closeSourceAccountModal();
+        setActiveImport(duplicate.existing);
+        await loadReviewRows(duplicate.existing, { filter: 'all', search: '' });
+        await loadImports();
+        setSuccess('This statement was already uploaded. Opened the existing entries.');
+        return;
+      }
+
+      if (duplicate.existing && !duplicate.exact) {
         const uploadedAt = duplicate.existing.created_at
           ? new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(duplicate.existing.created_at))
           : 'an earlier upload';
@@ -670,7 +685,7 @@ export default function StatementImportPage() {
         throw new Error('No transaction rows were found in this statement. Check that the file contains dated debit/credit rows.');
       }
 
-      const statementImport = await createStatementImport(statementFile, importSourceName, {
+      const statementImport = duplicate.exact ? duplicate.existing : await createStatementImport(statementFile, importSourceName, {
         fileHash: duplicate.fileHash
       });
       const rowsWithSourceAccount = getRowsWithSourceAccount(rows, sourceAccount);
@@ -852,6 +867,11 @@ export default function StatementImportPage() {
       imported_transaction_id: row.id,
       transaction_type: row.transaction_type,
       amount: Math.abs(Number(row.amount || 0)),
+      primary_currency: getCurrencyPreferences().primary,
+      original_currency: row.input_currency || getCurrencyPreferences().primary,
+      original_amount: Math.abs(Number(row.amount || 0)),
+      exchange_rate: (row.input_currency || getCurrencyPreferences().primary) === getCurrencyPreferences().primary ? 1 : Number(row.exchange_rate),
+      posting_date: row.posting_date || null,
       description: row.clean_description || row.description,
       transaction_date: row.transaction_date,
       transfer_fee: row.transfer_fee || 0,
@@ -861,8 +881,8 @@ export default function StatementImportPage() {
       notes: row.notes || (activeImport ? `Imported from ${activeImport.file_name}` : 'Imported from statement')
     });
 
-    await updateImportedTransactionStatus(row.id, 'imported', transaction.id);
-    setRowStatus(row.id, 'imported');
+    await updateImportedTransactionStatus(row.id, transaction._linkedPurchase ? 'duplicate' : 'imported', transaction.id);
+    setRowStatus(row.id, transaction._linkedPurchase ? 'duplicate' : 'imported');
     return transaction;
   }
 
@@ -900,7 +920,7 @@ export default function StatementImportPage() {
     }
 
     const [row, ...remainingRows] = rows;
-    const match = await findSmartMatch(row);
+    const match = await findDueMatch(row);
 
     if (match) {
       setPendingMatch({
@@ -954,14 +974,8 @@ export default function StatementImportPage() {
       setSuccess('');
       const { match, remainingRows, row } = pendingMatch;
 
-      if (match.type === 'existing_transaction') {
-        await updateImportedTransactionStatus(row.id, 'duplicate', match.target.id);
-        setRowStatus(row.id, 'duplicate');
-        setSuccess('Statement entry linked to the existing transaction.');
-      } else {
-        const transaction = await createTransactionFromImportedRow(row);
-        await linkDuePayment(match.target.id, transaction.id);
-      }
+      const transaction = await createTransactionFromImportedRow(row);
+      await linkDuePayment(match.target.id, transaction.id);
 
       setPendingMatch(null);
       await processImportRowQueue(remainingRows);
@@ -1200,141 +1214,16 @@ export default function StatementImportPage() {
                   </div>
 
                   {isActiveRow && isEditing && (
-                    <div className="statement-row-editor">
-                      <label className="field-group">
-                        Description
-                        <input
-                          onChange={(event) => updateRowLocal(row.id, 'clean_description', event.target.value)}
-                          value={row.clean_description || ''}
-                        />
-                      </label>
-                      <label className="field-group">
-                        Amount
-                        <input
-                          min="0"
-                          onChange={(event) => updateRowLocal(row.id, 'amount', event.target.value)}
-                          type="number"
-                          value={row.amount || 0}
-                        />
-                      </label>
-                      <BoundedDatePicker
-                        label="Date"
-                        maxDate={today}
-                        minDate={earliestHistoricalDate}
-                        onChange={(value) => updateRowLocal(row.id, 'transaction_date', value)}
-                        required
-                        value={row.transaction_date || ''}
-                      />
-                      <label className="field-group">
-                        Type
-                        <select
-                          onChange={(event) => updateRowLocal(row.id, 'transaction_type', event.target.value)}
-                          value={row.transaction_type || 'expense'}
-                        >
-                          <option value="expense">Expense</option>
-                          <option value="income">Income</option>
-                          <option value="transfer">Transfer</option>
-                        </select>
-                      </label>
-                      <label className="field-group">
-                        Activity
-                        <select
-                          onChange={(event) => updateRowLocal(row.id, 'financial_activity', event.target.value)}
-                          value={row.financial_activity || 'standard'}
-                        >
-                          <option value="standard">Standard Purchase</option>
-                          <option value="payment">Card payment</option>
-                          <option value="refund">Refund</option>
-                          <option value="fee">Fee / interest</option>
-                          <option value="cash_advance">Cash advance</option>
-                          <option value="installment">Installment</option>
-                        </select>
-                      </label>
-                      {row.transaction_type === 'transfer' ? (
-                        <>
-                          <label className="field-group">
-                            From Account
-                            <select
-                              onChange={(event) => updateRowLocal(row.id, 'from_account_id', event.target.value)}
-                              value={row.from_account_id || ''}
-                            >
-                              <option value="">Select from account</option>
-                              {accounts.map((account) => (
-                                <option key={account.id} value={account.id}>{account.name}</option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="field-group">
-                            To Account
-                            <select
-                              onChange={(event) => updateRowLocal(row.id, 'to_account_id', event.target.value)}
-                              value={row.to_account_id || ''}
-                            >
-                              <option value="">Select to account</option>
-                              {accounts.map((account) => (
-                                <option key={account.id} value={account.id}>{account.name}</option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="field-group">
-                            Transfer Fee
-                            <input
-                              min="0"
-                              onChange={(event) => updateRowLocal(row.id, 'transfer_fee', event.target.value)}
-                              type="number"
-                              value={row.transfer_fee || 0}
-                            />
-                          </label>
-                        </>
-                      ) : (
-                        <>
-                          <label className="field-group">
-                            Source Account
-                            <select
-                              onChange={(event) => updateRowLocal(row.id, 'account_id', event.target.value)}
-                              value={row.account_id || ''}
-                            >
-                              <option value="">Select account</option>
-                              {accounts.map((account) => (
-                                <option key={account.id} value={account.id}>{account.name}</option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="field-group">
-                            Category
-                            <select
-                              onChange={(event) => updateRowLocal(row.id, 'category_id', event.target.value)}
-                              value={row.category_id || ''}
-                            >
-                              <option value="">Select category</option>
-                              {getRowCategoryOptions(row).map((category) => (
-                                <option key={category.id} value={category.id}>{category.displayName}</option>
-                              ))}
-                            </select>
-                          </label>
-                        </>
-                      )}
-                      <label className="field-group">
-                        Project Tag
-                        <select
-                          onChange={(event) => updateRowLocal(row.id, 'project_tag_id', event.target.value)}
-                          value={row.project_tag_id || ''}
-                        >
-                          <option value="">Select project tag</option>
-                          {projectTags.map((tag) => (
-                            <option key={tag.id} value={tag.id}>{tag.name}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="field-group">
-                        Notes
-                        <input
-                          onChange={(event) => updateRowLocal(row.id, 'notes', event.target.value)}
-                          value={row.notes || ''}
-                        />
-                      </label>
-                      <button className="secondary-button" onClick={() => saveRow(row)}>Save Row</button>
-                    </div>
+                    <ImportRowEditor
+                      row={row} accounts={accounts} categories={getRowCategoryOptions(row)} projectTags={projectTags}
+                      onChange={(field, value) => updateRowLocal(row.id, field, value)}
+                      onSave={() => saveRow(row)}
+                      onCancel={() => {
+                        const saved = editSnapshots.current.get(row.id);
+                        if (saved) setPreviewRows((rows) => rows.map((item) => item.id === row.id ? saved : item));
+                        toggleEdit(row.id);
+                      }}
+                    />
                   )}
                 </article>
               );
@@ -1533,17 +1422,8 @@ export default function StatementImportPage() {
             </div>
 
             <div className="modal-actions">
-              {pendingMatch.match.type === 'existing_transaction' ? (
-                <>
-                  <button className="primary-button" disabled={saving} onClick={handleConfirmMatch}>Link as same transaction</button>
-                  <button className="secondary-button" disabled={saving} onClick={handleIgnoreMatch}>Keep both</button>
-                </>
-              ) : (
-                <>
-                  <button className="primary-button" disabled={saving} onClick={handleConfirmMatch}>Confirm</button>
-                  <button className="secondary-button" disabled={saving} onClick={handleIgnoreMatch}>Ignore</button>
-                </>
-              )}
+              <button className="primary-button" disabled={saving} onClick={handleConfirmMatch}>Confirm</button>
+              <button className="secondary-button" disabled={saving} onClick={handleIgnoreMatch}>Ignore</button>
             </div>
           </section>
         </div>

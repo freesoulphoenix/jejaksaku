@@ -41,3 +41,18 @@ SUPABASE_SERVICE_KEY=your_supabase_service_role_key
 ```
 
 Use the service role key only on the backend. Never expose it in the React client.
+
+## Purchase reconciliation
+
+Apply `033_purchase_reconciliation.sql` after the earlier numbered migrations and before deploying the matching frontend. It adds user-scoped review history and atomic functions for linking purchases, saving Keep Both decisions, and Undo. Existing transactions are unchanged until the user confirms a link.
+
+With the Supabase CLI already authenticated and linked:
+
+```bash
+supabase db query --linked --file supabase/033_purchase_reconciliation.sql
+supabase db query --linked --file supabase/tests/purchase_reconciliation.sql
+```
+
+The regression script uses temporary fixture users and records inside a transaction and rolls everything back. It checks balance changes, both source orders, incoming-source reconciliation, conflicting fields, duplicate source protection, and row-level security. Frontend matching and parsing tests run with `npm test` and in the Pages deployment workflow.
+
+Activity has a **Check for entry duplication** button beneath its filters and totals. Linking requires explicit choices for conflicting descriptions, categories, project tags, notes, and activity values. Original source details remain in review history; linked transactions count once in Activity and reports. Undo is available under **Linked purchases · Undo** in the review dialog, and refuses to overwrite later edits.

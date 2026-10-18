@@ -22,9 +22,9 @@ function getInitialForm(transaction, defaultAccountId = '') {
     financial_activity: transaction?.financial_activity || 'standard',
     amount: transaction?.amount || 0,
     primary_currency: transaction?.primary_currency || getCurrencyPreferences().primary,
-    original_currency: transaction?.original_currency || '',
-    original_amount: transaction?.original_amount ?? '',
-    exchange_rate: transaction?.exchange_rate ?? '',
+    original_currency: transaction?.original_currency || transaction?.primary_currency || getCurrencyPreferences().primary,
+    original_amount: transaction?.original_amount ?? transaction?.amount ?? '',
+    exchange_rate: transaction?.exchange_rate ?? 1,
     rate_mode: transaction?.rate_mode || 'manual',
     rate_updated_at: transaction?.rate_updated_at || null,
     account_amount: transaction?.account_amount ?? '',
@@ -37,6 +37,7 @@ function getInitialForm(transaction, defaultAccountId = '') {
     receipt_id: transaction?.receipt_id || null,
     imported_transaction_id: transaction?.imported_transaction_id || null,
     transaction_date: transaction?.transaction_date || today,
+    posting_date: transaction?.posting_date || null,
     description: transaction?.description || '',
     transfer_fee: transaction?.transfer_fee || 0,
     transfer_purpose: transaction?.transfer_purpose || '',
@@ -181,6 +182,22 @@ export default function AddTransactionModal({
               </div>
             </section>
           )}
+          <div className="form-grid span-2 purchase-form-row">
+            {isTransfer ? <label className="field-group">Account<select value={form.from_account_id} required onChange={(event) => updateField('from_account_id', event.target.value)}><option value="">Select source account</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label> : (
+              <label className="field-group">
+                Account
+                <select
+                  onChange={(event) => updateField('account_id', event.target.value)}
+                  required
+                  value={form.account_id}
+                >
+                  <option value="">Select account</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>{account.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           <label className="field-group">
             Type
             <select
@@ -192,7 +209,9 @@ export default function AddTransactionModal({
               <option value="transfer">Transfer</option>
             </select>
           </label>
-
+          </div>
+          <TransactionCurrencyFields form={form} setForm={setForm} accounts={accounts} editing={Boolean(transaction)} />
+          <div className="form-grid span-2 purchase-form-row">
           <label className="field-group">
             Activity
             <select
@@ -208,33 +227,21 @@ export default function AddTransactionModal({
             </select>
           </label>
           <label className="field-group">
-            Primary amount ({form.primary_currency})
-            <input
-              onChange={(event) => updateField('amount', event.target.value)}
-              placeholder="0"
-              required={!form.original_amount}
-              type="number"
-              readOnly={Boolean(form.original_amount)}
-              value={form.original_amount ? Number(form.original_amount) * Number(form.exchange_rate || (form.original_currency === form.primary_currency ? 1 : 0)) : form.amount}
-              step="0.01"
-              inputMode="decimal"
-            />
+            Project Tag
+            <select
+              onChange={(event) => updateField('project_tag_id', event.target.value)}
+              value={form.project_tag_id}
+            >
+              <option value="">Select project tag</option>
+              {projectTags.map((tag) => (
+                <option key={tag.id} value={tag.id}>{tag.name}</option>
+              ))}
+            </select>
           </label>
-          {isTransfer ? (
+          </div>
+          {isTransfer && (
             <>
-              <label className="field-group">
-                From Account
-                <select
-                  onChange={(event) => updateField('from_account_id', event.target.value)}
-                  required
-                  value={form.from_account_id}
-                >
-                  <option value="">Select source account</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>{account.name}</option>
-                  ))}
-                </select>
-              </label>
+
               <label className="field-group">
                 To Account
                 <select
@@ -269,22 +276,9 @@ export default function AddTransactionModal({
                 />
               </label>
             </>
-          ) : (
-            <>
-              <label className="field-group">
-                Account
-                <select
-                  onChange={(event) => updateField('account_id', event.target.value)}
-                  required
-                  value={form.account_id}
-                >
-                  <option value="">Select account</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>{account.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="field-group">
+          )}
+          {!isTransfer && (
+              <label className="field-group span-2">
                 Category
                 <select
                   onChange={(event) => updateField('category_id', event.target.value)}
@@ -297,21 +291,8 @@ export default function AddTransactionModal({
                   ))}
                 </select>
               </label>
-            </>
           )}
-          <TransactionCurrencyFields form={form} setForm={setForm} accounts={accounts} editing={Boolean(transaction)} />
-          <label className="field-group">
-            Project Tag
-            <select
-              onChange={(event) => updateField('project_tag_id', event.target.value)}
-              value={form.project_tag_id}
-            >
-              <option value="">Select project tag</option>
-              {projectTags.map((tag) => (
-                <option key={tag.id} value={tag.id}>{tag.name}</option>
-              ))}
-            </select>
-          </label>
+          <div className="span-2">
           <BoundedDatePicker
             label="Date"
             maxDate={today}
@@ -320,6 +301,7 @@ export default function AddTransactionModal({
             required
             value={form.transaction_date}
           />
+          </div>
           <label className="field-group span-2">
             Description
             <input

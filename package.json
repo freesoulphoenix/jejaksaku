@@ -4,6 +4,7 @@
   "private": true,
   "description": "Daily expense log app with React, Express, and Supabase.",
   "scripts": {
+    "test": "node --test client/src/utils/*.test.js client/src/services/*.test.js",
     "dev:client": "npm run dev --prefix client",
     "dev:server": "npm run dev --prefix server",
     "build:client": "npm run build --prefix client",

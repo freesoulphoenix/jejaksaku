@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import BoundedDatePicker from '../components/BoundedDatePicker.jsx';
-import { findSmartMatch } from '../services/matchingService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { earliestHistoricalDate, getLocalIsoDate } from '../utils/dateBounds.js';
 import { formatCurrency } from '../utils/format.js';
@@ -62,8 +61,6 @@ export default function ReceiptDetailPage({
   const [creatingTransaction, setCreatingTransaction] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [error, setError] = useState(receipt.ocr_error || '');
-  const [pendingDuplicate, setPendingDuplicate] = useState(null);
-  const [pendingTransaction, setPendingTransaction] = useState(null);
   const fileExpired = Boolean(receipt.file_deleted_at);
   const canPreviewFile = Boolean(receipt.image_url && !fileExpired);
 
@@ -109,21 +106,6 @@ export default function ReceiptDetailPage({
         throw new Error('Date Format is invalid');
       }
 
-      const match = await findSmartMatch({
-        account_id: transactionForm.account_id,
-        amount: form.total_amount,
-        clean_description: form.merchant_name,
-        description: form.merchant_name,
-        transaction_date: form.receipt_date,
-        transaction_type: 'expense'
-      });
-
-      if (match?.type === 'existing_transaction') {
-        setPendingDuplicate(match);
-        setPendingTransaction({ ...transactionForm });
-        return;
-      }
-
       await onCreateTransaction(receipt.id, transactionForm);
     } catch (err) {
       setError(getReceiptErrorMessage(err, 'Unable to create transaction from receipt.'));
@@ -132,48 +114,12 @@ export default function ReceiptDetailPage({
     }
   }
 
-  async function handleKeepBoth() {
-    setPendingDuplicate(null);
-    const transaction = pendingTransaction || transactionForm;
-    setPendingTransaction(null);
-    setCreatingTransaction(true);
-
-    try {
-      await onCreateTransaction(receipt.id, transaction);
-    } catch (err) {
-      setError(err.message || 'Unable to create transaction from receipt.');
-    } finally {
-      setCreatingTransaction(false);
-    }
-  }
-
-  async function handleLinkDuplicate() {
-    setError('');
-    setCreatingTransaction(true);
-
-    try {
-      await onLinkTransaction(receipt.id, pendingDuplicate.target.id);
-      setPendingDuplicate(null);
-      setPendingTransaction(null);
-    } catch (err) {
-      setError(err.message || 'Unable to link receipt to existing transaction.');
-    } finally {
-      setCreatingTransaction(false);
-    }
-  }
-
-  function handleCancelDuplicateReview() {
-    setPendingDuplicate(null);
-    setPendingTransaction(null);
-    setCreatingTransaction(false);
-  }
-
   return (
     <div className="page-stack">
       <section className="page-heading">
         <div>
           <p className="section-kicker">Receipt detail</p>
-          <h1>{receipt.merchant_name || 'Untitled Receipt'}</h1>
+          <h1 className="receipt-detail-title">{receipt.merchant_name || 'Untitled Receipt'}</h1>
         </div>
         <div className="button-row">
           <button className="secondary-button" onClick={onBack}>Back to Receipts</button>
@@ -335,31 +281,7 @@ export default function ReceiptDetailPage({
         </article>
       </section>
 
-      {pendingDuplicate && (
-        <div className="modal-backdrop" role="presentation">
-          <section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="receipt-duplicate-title">
-            <div className="modal-header">
-              <div>
-                <p className="section-kicker">Possible duplicate</p>
-                <h2 id="receipt-duplicate-title">Review matching transaction</h2>
-              </div>
-              <button className="icon-button" aria-label="Close duplicate review" onClick={handleCancelDuplicateReview}>x</button>
-            </div>
-            <p className="muted-copy">{pendingDuplicate.message}</p>
-            <div className="modal-actions">
-              <button className="primary-button" disabled={creatingTransaction} onClick={handleLinkDuplicate} type="button">
-                Link as same transaction
-              </button>
-              <button className="secondary-button" disabled={creatingTransaction} onClick={handleKeepBoth} type="button">
-                Keep Both
-              </button>
-              <button className="secondary-button" disabled={creatingTransaction} onClick={handleCancelDuplicateReview} type="button">
-                Cancel
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+
     </div>
   );
 }

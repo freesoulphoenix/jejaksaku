@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import AddTransactionModal from '../components/AddTransactionModal.jsx';
 import BulkEditActivitiesModal from '../components/BulkEditActivitiesModal.jsx';
+import PurchaseDuplicateModal from '../components/PurchaseDuplicateModal.jsx';
+import { checkExistingDuplicates, keepPurchasesSeparate, linkSamePurchase, undoPurchaseLink } from '../services/purchaseReviewService.js';
 import TransactionList from '../components/TransactionList.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { getCategories } from '../services/categoryService.js';
@@ -116,6 +118,8 @@ export default function TransactionsPage({ onNavigate }) {
   const [bulkSaving, setBulkSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [duplicateReview, setDuplicateReview] = useState(null);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const searchInputRef = useRef(null);
 
   const loadPageData = useCallback(async function loadPageData(background = false) {
@@ -245,6 +249,27 @@ export default function TransactionsPage({ onNavigate }) {
     setEditingTransaction(null);
     setPendingDeleteId('');
     setIsModalOpen(true);
+  }
+
+  async function checkDuplicates() {
+    setCheckingDuplicates(true);
+    setError('');
+    try { setDuplicateReview(await checkExistingDuplicates()); }
+    catch (err) { setError(err.message || 'Unable to check existing duplicates.'); }
+    finally { setCheckingDuplicates(false); }
+  }
+
+  async function handleLinkPurchase(pair, choices) {
+    const id = await linkSamePurchase(pair.first, pair.second, choices);
+    const survivor = pair.first.id;
+    const removed = pair.second.id;
+    setDuplicateReview((current) => ({
+      // Retire overlapping candidates after a link; a fresh scan recalculates them.
+      ...current,
+      pairs: current.pairs.map((candidate) => candidate === pair || ![candidate.first.id, candidate.second.id].some((value) => value === survivor || value === removed) ? candidate : { ...candidate, skipped: true }),
+      links: [{ id, first_before: pair.first }, ...current.links]
+    }));
+    await loadPageData(true);
   }
 
   function toggleSelectionMode() {
@@ -532,6 +557,10 @@ export default function TransactionsPage({ onNavigate }) {
         </div>
       </section>
 
+      <button className="secondary-button purchase-check-button" disabled={loading || checkingDuplicates} onClick={checkDuplicates} type="button">
+        {checkingDuplicates ? 'Checking entries...' : 'Check for entry duplication'}
+      </button>
+
       <article className="panel activity-list-panel">
         {selectionMode && (
           <div className="activity-selection-toolbar">
@@ -599,6 +628,20 @@ export default function TransactionsPage({ onNavigate }) {
           transaction={editingTransaction}
         />
       )}
+
+      {duplicateReview && <PurchaseDuplicateModal
+        {...duplicateReview}
+        accounts={accounts} categories={categories} projectTags={projectTags}
+        onClose={() => setDuplicateReview(null)}
+        onLink={handleLinkPurchase}
+        onKeepBoth={(pair) => keepPurchasesSeparate(pair.first, pair.second)}
+        onLater={() => {}}
+        onUndo={async (id) => {
+          await undoPurchaseLink(id);
+          await loadPageData(true);
+          setDuplicateReview((current) => ({ ...current, links: current.links.filter((link) => link.id !== id) }));
+        }}
+      />}
 
       {isBulkEditOpen && (
         <BulkEditActivitiesModal

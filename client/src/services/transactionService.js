@@ -5,6 +5,7 @@ import { getCurrencyPreferences } from '../utils/currency.js';
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
 import { getTransactionCategoryType } from '../utils/categoryOptions.js';
+import { reviewIncomingPurchase } from './purchaseReviewService.js';
 
 function requireSupabase() {
   if (!supabase) {
@@ -53,6 +54,7 @@ function normalizeTransaction(transaction, userProfileId) {
     destination_amount: transactionType === 'transfer' && transaction.destination_amount !== '' && transaction.destination_amount != null ? Number(transaction.destination_amount) : null,
     description: transaction.description || null,
     transaction_date: transaction.transaction_date,
+    posting_date: transaction.posting_date || null,
     notes: transaction.notes || null,
     transfer_purpose: transaction.transfer_purpose || null,
     transfer_fee: transactionType === 'transfer' ? Number(transaction.transfer_fee || 0) : 0,
@@ -170,15 +172,18 @@ export async function getTransactions() {
         to_account:to_account_id (id, name, type),
         categories:category_id (id, name, type),
         project_tags:project_tag_id (id, name),
-        receipt:receipt_id (id, merchant_name, receipt_date),
+        receipt:receipt_id (id, merchant_name, receipt_date, image_url),
         imported_transaction:imported_transaction_id (
           id,
           import_status,
           transaction_date,
+          raw_description,
+          description,
           statement_import:statement_import_id (id, file_name, bank_name)
         )
       `)
       .eq('user_profile_id', userProfileId)
+      .is('merged_into_id', null)
       .order('transaction_date', { ascending: false })
       .order('created_at', { ascending: false })
       .range(from, from + pageSize - 1);
@@ -268,6 +273,18 @@ export async function createTransaction(transaction) {
   let payload = normalizeTransaction(transaction, userProfileId);
   validateTransaction(payload);
   payload = await resolveTransactionAccounts(client, userProfileId, payload);
+
+  const review = await reviewIncomingPurchase(payload);
+  if (review.linked) {
+    const { data, error } = await client.from('transactions').select('*').eq('id', review.linked.id).eq('user_profile_id', userProfileId).single();
+    if (error) throw error;
+    return { ...data, _linkedPurchase: true };
+  }
+  if (review.keepSeparate?.length) {
+    const { data, error } = await client.rpc('create_reviewed_purchase', { transaction_data: payload, separate_ids: review.keepSeparate.map((row) => row.id) }).single();
+    if (error) throw error;
+    return data;
+  }
 
   const { data, error } = await client
     .from('transactions')

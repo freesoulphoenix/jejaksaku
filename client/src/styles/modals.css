@@ -8,6 +8,28 @@
   background: rgba(15, 23, 42, 0.38);
 }
 
+.modal-panel.purchase-review-modal { width: min(100%, 900px); }
+.purchase-review-backdrop { z-index: 100; }
+.purchase-review-modal .modal-header h2 { font-size: 1.15rem; }
+.purchase-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
+.purchase-entry, .purchase-result { min-width: 0; padding: 16px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface-soft); overflow-wrap: anywhere; }
+.purchase-entry h3, .purchase-result h3 { font-size: 0.95rem; }
+.purchase-entry dl { margin: 0; }
+.purchase-entry dt { margin-top: 10px; color: var(--color-muted); font-size: 0.78rem; }
+.purchase-entry dd { margin: 3px 0 0; font-size: 0.87rem; }
+.purchase-result fieldset { margin: 12px 0; padding: 12px; border: 1px solid var(--color-border-strong); border-radius: 12px; }
+.purchase-result legend { font-weight: 700; }
+.purchase-result label { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; }
+.purchase-result input[type="radio"] { width: auto; flex: 0 0 auto; }
+.purchase-link-history { margin-top: 20px; }
+.purchase-history-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; }
+.purchase-review-modal .modal-actions { position: sticky; bottom: -20px; z-index: 1; flex-wrap: wrap; padding: 14px 0; background: #ffffff; }
+.purchase-check-button { width: 100%; }
+.page-heading h1.receipt-detail-title { font-size: 1rem; font-weight: 600; line-height: 1.4; overflow-wrap: break-word; }
+@media (max-width: 639px) {
+  .purchase-comparison { grid-template-columns: minmax(0, 1fr); }
+}
+
 .modal-panel {
   width: min(100%, 560px);
   max-height: calc(100vh - 36px);
