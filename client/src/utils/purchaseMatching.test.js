@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findPurchasePairs, purchaseMatch, resolvePurchaseFields } from './purchaseMatching.js';
+import { findPurchasePairs, mergePurchaseNotes, purchaseMatch, resolvePurchaseFields } from './purchaseMatching.js';
 
 const receipt = { id: 'receipt-entry', receipt_id: 'receipt', account_id: 'mega', amount: 113200, primary_currency: 'IDR', transaction_date: '2026-05-27', transaction_type: 'expense', description: 'Weekly groceries', category_id: 'groceries', financial_activity: 'standard' };
 const statement = { id: 'statement-entry', imported_transaction_id: 'statement', account_id: 'mega', amount: '113200.00', primary_currency: 'IDR', transaction_date: '2026-05-27', transaction_type: 'expense', description: 'RANCH MARKET LOTTE JKT', category_id: 'daily', financial_activity: 'standard' };
@@ -52,4 +52,25 @@ test('conflicting fields require explicit choices and single values are preserve
   assert.equal(result.category_id, 'daily');
   assert.equal(result.notes, 'Statement note');
   assert.equal(result.financial_activity, 'standard');
+});
+
+test('linking combines different notes without requiring a choice', () => {
+  const result = resolvePurchaseFields({ ...receipt, notes: 'Bought groceries\nKeep receipt' }, { ...statement, notes: 'Imported from May statement' }, { description: 'first', category_id: 'second' });
+  assert.equal(result.notes, 'Bought groceries\nKeep receipt\n\nImported from May statement');
+});
+
+test('identical notes appear once after normalizing line endings and outer whitespace', () => {
+  assert.equal(mergePurchaseNotes('  Groceries\r\nPaid by card\n', 'Groceries\nPaid by card'), 'Groceries\nPaid by card');
+});
+
+test('notes preserve the nonempty value or stay empty when both are blank', () => {
+  assert.equal(mergePurchaseNotes(null, 'Receipt note'), 'Receipt note');
+  assert.equal(mergePurchaseNotes('Manual note', '\n \t'), 'Manual note');
+  assert.equal(mergePurchaseNotes(null, undefined), null);
+  assert.equal(mergePurchaseNotes(' \r\n', '\t'), null);
+});
+
+test('old notes choices cannot discard either note', () => {
+  const same = { ...receipt, notes: 'Receipt note' };
+  assert.equal(resolvePurchaseFields(same, { ...same, notes: 'Statement note' }, { notes: 'second' }).notes, 'Receipt note\n\nStatement note');
 });

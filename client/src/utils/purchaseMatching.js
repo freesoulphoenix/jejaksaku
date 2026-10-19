@@ -52,9 +52,19 @@ export const purchaseConflictFields = [
   ['description', 'Description'], ['category_id', 'Category'], ['project_tag_id', 'Project Tag'], ['notes', 'Notes'], ['financial_activity', 'Activity']
 ];
 
+export function mergePurchaseNotes(first, second) {
+  const normalize = (value) => String(value || '').replace(/\r\n?/g, '\n').trim();
+  const a = normalize(first), b = normalize(second);
+  return [...new Set([a, b].filter(Boolean))].join('\n\n') || null;
+}
+
 export function resolvePurchaseFields(first, second, choices = {}) {
   const resolved = {};
   for (const [key] of purchaseConflictFields) {
+    if (key === 'notes') {
+      resolved.notes = mergePurchaseNotes(first.notes, second.notes);
+      continue;
+    }
     const a = first[key] || '', b = second[key] || '';
     if (a && b && a !== b && !['first', 'second'].includes(choices[key])) throw new Error(`Choose which ${key.replaceAll('_', ' ')} to keep.`);
     resolved[key] = choices[key] === 'second' ? b : a || b || null;

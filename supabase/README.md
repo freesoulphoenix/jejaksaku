@@ -50,9 +50,10 @@ With the Supabase CLI already authenticated and linked:
 
 ```bash
 supabase db query --linked --file supabase/033_purchase_reconciliation.sql
+supabase db query --linked --file supabase/034_merge_purchase_notes.sql
 supabase db query --linked --file supabase/tests/purchase_reconciliation.sql
 ```
 
 The regression script uses temporary fixture users and records inside a transaction and rolls everything back. It checks balance changes, both source orders, incoming-source reconciliation, conflicting fields, duplicate source protection, and row-level security. Frontend matching and parsing tests run with `npm test` and in the Pages deployment workflow.
 
-Activity has a **Check for entry duplication** button beneath its filters and totals. Linking requires explicit choices for conflicting descriptions, categories, project tags, notes, and activity values. Original source details remain in review history; linked transactions count once in Activity and reports. Undo is available under **Linked purchases · Undo** in the review dialog, and refuses to overwrite later edits.
+Activity has a **Check for entry duplication** button beneath its filters and totals. Linking requires explicit choices for conflicting descriptions, categories, project tags, and activity values. Notes are combined automatically, separated by a blank line; identical notes appear once, and empty notes are omitted. Apply migration `034_merge_purchase_notes.sql` to enable this behavior on the server. Original source details remain in review history; linked transactions count once in Activity and reports. Undo is available under **Linked purchases · Undo** in the review dialog, and refuses to overwrite later edits.

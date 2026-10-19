@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { purchaseConflictFields, purchaseSourceLabel, purchaseValue, resolvePurchaseFields } from '../utils/purchaseMatching.js';
+import { mergePurchaseNotes, purchaseConflictFields, purchaseSourceLabel, purchaseValue, resolvePurchaseFields } from '../utils/purchaseMatching.js';
 
 function money(row) {
   const { amount, currency } = purchaseValue(row);
@@ -63,7 +63,7 @@ export default function PurchaseDuplicateModal({ pairs, accounts = [], categorie
             {row.posting_date && <><dt>Posting date</dt><dd>{row.posting_date}</dd></>}
             <dt>Amount</dt><dd>{money(row)}</dd>
             <dt>Account</dt><dd>{accounts.find((account) => account.id === row.account_id)?.name || row.accounts?.name || 'Unspecified'}</dd>
-            {purchaseConflictFields.filter(([field]) => field !== 'description').map(([field, title]) => <div key={field}><dt>{title}</dt><dd>{label(row, field)}</dd></div>)}
+            {purchaseConflictFields.filter(([field]) => field !== 'description').map(([field, title]) => <div key={field}><dt>{title}</dt><dd className={field === 'notes' ? 'purchase-notes' : undefined}>{label(row, field)}</dd></div>)}
           </dl>
           {row.receipt?.image_url && <a href={row.receipt.image_url} target="_blank" rel="noreferrer">View receipt</a>}
           {row.imported_transaction && <details><summary>View statement record</summary><p>{row.imported_transaction.raw_description || row.imported_transaction.description}</p><p>{row.imported_transaction.statement_import?.file_name}</p></details>}
@@ -71,6 +71,7 @@ export default function PurchaseDuplicateModal({ pairs, accounts = [], categorie
         {preview && <section className="purchase-result" aria-label="Resulting transaction">
           <h3>Choose the details to retain</h3>
           {purchaseConflictFields.map(([field, title]) => {
+            if (field === 'notes') return <p key={field}><strong>Notes (combined automatically): </strong><span className="purchase-notes">{mergePurchaseNotes(pair.first.notes, pair.second.notes) || '—'}</span></p>;
             const a = pair.first[field] || '', b = pair.second[field] || '';
             if (!(a && b && a !== b)) return <p key={field}><strong>{title}: </strong>{label({ ...pair.first, [field]: a || b }, field)}</p>;
             return <fieldset key={field}><legend>{title} — choose one</legend>{['first', 'second'].map((side, position) => <label key={side}><input type="radio" name={`purchase-${field}`} checked={choices[field] === side} onChange={() => setChoices((current) => ({ ...current, [field]: side }))} />{label(position ? pair.second : pair.first, field)} · from entry {position + 1}</label>)}</fieldset>;
