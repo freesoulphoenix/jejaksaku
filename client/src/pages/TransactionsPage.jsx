@@ -559,6 +559,7 @@ export default function TransactionsPage({ onNavigate }) {
 
       <button className="secondary-button purchase-check-button" disabled={loading || checkingDuplicates} onClick={checkDuplicates} type="button">
         {checkingDuplicates ? 'Checking entries...' : 'Check for entry duplication'}
+        <small>(Use Desktop Web Version for better experience)</small>
       </button>
 
       <article className="panel activity-list-panel">

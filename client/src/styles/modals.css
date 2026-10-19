@@ -25,6 +25,7 @@
 .purchase-history-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; }
 .purchase-review-modal .modal-actions { position: sticky; bottom: -20px; z-index: 1; flex-wrap: wrap; padding: 14px 0; background: #ffffff; }
 .purchase-check-button { width: 100%; }
+.purchase-check-button small { display: block; margin-top: 4px; font-size: 0.75rem; font-weight: 400; }
 .page-heading h1.receipt-detail-title { font-size: 1rem; font-weight: 600; line-height: 1.4; overflow-wrap: break-word; }
 @media (max-width: 639px) {
   .purchase-comparison { grid-template-columns: minmax(0, 1fr); }
