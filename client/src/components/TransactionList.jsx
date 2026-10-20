@@ -243,7 +243,7 @@ function ActivityTransactionList({
                   <strong>{getTransactionTitle(transaction)}</strong>
                 </div>
                 <small>{subtitle}</small>
-                {transaction.original_amount != null && <small>{formatCurrency(transaction.original_amount, transaction.original_currency)} · rate {transaction.exchange_rate}</small>}
+                {transaction.original_amount != null && <small>{formatCurrency(transaction.original_amount, transaction.original_currency)}</small>}
                 {linkLabel && <TransactionLinkBadge label={linkLabel} />}
               </div>
 
