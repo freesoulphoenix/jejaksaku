@@ -745,12 +745,6 @@ export default function StatementImportPage() {
         }
       }
       setBulkValues((values) => ({ ...values, [field]: value }));
-      if (field === 'transaction_type' && value === 'transfer') {
-        for (const row of selectedRows) {
-          if (!editSnapshots.current.has(row.id)) editSnapshots.current.set(row.id, normalizeRowLocalChange(row, field, value));
-        }
-        setEditingIds((ids) => new Set([...ids, ...selectedRows.map((row) => row.id)]));
-      }
     } catch (err) {
       setError(err.message || 'Unable to apply bulk changes. Some rows may already have been updated.');
     } finally {
