@@ -21,6 +21,7 @@ export default function ImportRowEditor({ row, accounts, categories, projectTags
     {!transfer ? select('category_id', 'Category', categories.map((category) => [category.id, category.displayName]), 'Select category') : select('to_account_id', 'To Account', accountOptions, 'Select destination account')}
     <label className="field-group">Notes<input value={row.notes || ''} onChange={(event) => onChange('notes', event.target.value)} /></label>
     {transfer && <label className="field-group span-2">Transfer Fee<input type="number" min="0" step="any" value={row.transfer_fee || 0} onChange={(event) => onChange('transfer_fee', event.target.value)} /></label>}
+    {transfer && <label className="field-group span-2">Transfer Purpose<input value={row.transfer_purpose || ''} onChange={(event) => onChange('transfer_purpose', event.target.value)} /></label>}
     <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
     <button type="button" className="primary-button" onClick={onSave}>Save Row</button>
   </div>;

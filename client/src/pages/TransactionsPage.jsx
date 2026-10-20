@@ -121,6 +121,7 @@ export default function TransactionsPage({ onNavigate }) {
   const [duplicateReview, setDuplicateReview] = useState(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const searchInputRef = useRef(null);
+  const duplicateCheckActivation = useRef(false);
 
   const loadPageData = useCallback(async function loadPageData(background = false) {
     setError('');
@@ -557,7 +558,24 @@ export default function TransactionsPage({ onNavigate }) {
         </div>
       </section>
 
-      <button className="secondary-button purchase-check-button" disabled={loading || checkingDuplicates} onClick={checkDuplicates} type="button">
+      <button
+        className="secondary-button purchase-check-button"
+        disabled={loading || checkingDuplicates}
+        onPointerDown={() => { duplicateCheckActivation.current = true; }}
+        onPointerCancel={() => { duplicateCheckActivation.current = false; }}
+        onBlur={() => { duplicateCheckActivation.current = false; }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') duplicateCheckActivation.current = true;
+        }}
+        onClick={(event) => {
+          // Native period/date pickers can dismiss over this button. Require
+          // activation to start here, while allowing assistive technology clicks.
+          const activated = duplicateCheckActivation.current || event.detail === 0;
+          duplicateCheckActivation.current = false;
+          if (activated) checkDuplicates();
+        }}
+        type="button"
+      >
         {checkingDuplicates ? 'Checking entries...' : 'Check for entry duplication'}
         <small>(Use Desktop Web Version for better experience)</small>
       </button>

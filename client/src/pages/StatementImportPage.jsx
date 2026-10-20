@@ -1,3 +1,4 @@
+import { normalizeImportRowChange } from '../utils/importRowChanges.js';
 import ImportRowEditor from '../components/ImportRowEditor.jsx';
 import { getCurrencyPreferences } from '../utils/currency.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -42,6 +43,11 @@ const emptyReviewSummary = {
   totalIncome: 0
 };
 const emptyBulkValues = {
+  transaction_type: '',
+  from_account_id: '',
+  to_account_id: '',
+  transfer_fee: '',
+  transfer_purpose: '',
   account_id: '',
   category_id: '',
   financial_activity: '',
@@ -97,7 +103,7 @@ function isRowImportable(row) {
   }
 
   if (row.transaction_type === 'transfer') {
-    return Boolean(row.from_account_id && row.to_account_id);
+    return Boolean(row.from_account_id && row.to_account_id && row.from_account_id !== row.to_account_id);
   }
 
   return Boolean(row.account_id && row.category_id);
@@ -362,45 +368,7 @@ export default function StatementImportPage() {
   }
 
   function normalizeRowLocalChange(row, field, value) {
-    const nextRow = { ...row, [field]: value };
-
-    if (field === 'transaction_type' && value !== 'transfer') {
-      nextRow.money_direction = resolveMoneyDirection(nextRow);
-    }
-
-    if (field === 'transaction_type' && value === 'transfer') {
-      nextRow.category_id = '';
-
-      if (nextRow.money_direction === 'out' && nextRow.account_id && !nextRow.from_account_id) {
-        nextRow.from_account_id = nextRow.account_id;
-      }
-
-      if (nextRow.money_direction === 'in' && nextRow.account_id && !nextRow.to_account_id) {
-        nextRow.to_account_id = nextRow.account_id;
-      }
-    }
-
-    if (field === 'account_id' && nextRow.transaction_type === 'transfer') {
-      if (nextRow.money_direction === 'out') {
-        nextRow.from_account_id = value;
-      } else if (nextRow.money_direction === 'in') {
-        nextRow.to_account_id = value;
-      }
-    }
-
-    if (field === 'transaction_type' || field === 'financial_activity') {
-      const nextCategoryType = getTransactionCategoryType(
-        nextRow.transaction_type,
-        nextRow.financial_activity
-      );
-      const selectedCategory = categories.find((category) => category.id === nextRow.category_id);
-
-      if (!nextCategoryType || (selectedCategory && selectedCategory.type !== nextCategoryType)) {
-        nextRow.category_id = '';
-      }
-    }
-
-    return nextRow;
+    return normalizeImportRowChange(row, field, value, categories);
   }
 
   function setRowStatus(rowId, importStatus) {
@@ -745,7 +713,7 @@ export default function StatementImportPage() {
   }
 
   async function applyBulkField(field, value) {
-    if (!value) {
+    if (value === '' || saving) {
       return;
     }
 
@@ -755,15 +723,39 @@ export default function StatementImportPage() {
     }
 
     setError('');
-    const ids = selectedRows.map((row) => row.id);
-    setPreviewRows((currentRows) => currentRows.map((row) => (
-      ids.includes(row.id) ? { ...row, [field]: value } : row
-    )));
-    await bulkUpdateImportedTransactions(ids, { [field]: value });
-    setBulkValues((currentValues) => ({
-      ...currentValues,
-      [field]: value
-    }));
+    setSaving(true);
+    try {
+      const groups = new Map();
+      for (const row of selectedRows) {
+        if (['from_account_id', 'to_account_id', 'transfer_fee', 'transfer_purpose'].includes(field) && row.transaction_type !== 'transfer') continue;
+        if (field === 'category_id' && row.transaction_type === 'transfer') continue;
+        const next = normalizeRowLocalChange(row, field, value);
+        const patch = Object.fromEntries(Object.entries(next).filter(([key, entry]) => key === field || entry !== row[key]));
+        const key = JSON.stringify(patch);
+        if (!groups.has(key)) groups.set(key, { patch, ids: [] });
+        groups.get(key).ids.push(row.id);
+      }
+      // Different statement directions need different transfer account patches.
+      for (const { patch, ids } of groups.values()) {
+        await bulkUpdateImportedTransactions(ids, patch);
+        setPreviewRows((rows) => rows.map((row) => ids.includes(row.id) ? { ...row, ...patch } : row));
+        for (const id of ids) {
+          const snapshot = editSnapshots.current.get(id);
+          if (snapshot) editSnapshots.current.set(id, { ...snapshot, ...patch });
+        }
+      }
+      setBulkValues((values) => ({ ...values, [field]: value }));
+      if (field === 'transaction_type' && value === 'transfer') {
+        for (const row of selectedRows) {
+          if (!editSnapshots.current.has(row.id)) editSnapshots.current.set(row.id, normalizeRowLocalChange(row, field, value));
+        }
+        setEditingIds((ids) => new Set([...ids, ...selectedRows.map((row) => row.id)]));
+      }
+    } catch (err) {
+      setError(err.message || 'Unable to apply bulk changes. Some rows may already have been updated.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveRow(row) {
@@ -1103,7 +1095,14 @@ export default function StatementImportPage() {
             </button>
           </div>
 
-          <div className="filter-panel">
+          <fieldset className="filter-panel" disabled={saving}>
+            <legend className="sr-only">Apply values to selected rows</legend>
+            <select aria-label="Apply type to selected" onChange={(event) => applyBulkField('transaction_type', event.target.value)} value={bulkValues.transaction_type}>
+              <option value="">Apply type to selected</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+              <option value="transfer">Transfer</option>
+            </select>
             <select onChange={(event) => applyBulkField('account_id', event.target.value)} value={bulkValues.account_id}>
               <option value="">Apply account to selected</option>
               {accounts.map((account) => (
@@ -1134,7 +1133,29 @@ export default function StatementImportPage() {
                 <option key={tag.id} value={tag.id}>{tag.name}</option>
               ))}
             </select>
-          </div>
+            {selectedRows.some((row) => row.transaction_type === 'transfer') && <>
+              <label className="field-group">From Account
+                <select value={bulkValues.from_account_id} onChange={(event) => applyBulkField('from_account_id', event.target.value)}>
+                  <option value="">Apply from account to selected transfers</option>
+                  {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                </select>
+              </label>
+              <label className="field-group">To Account
+                <select value={bulkValues.to_account_id} onChange={(event) => applyBulkField('to_account_id', event.target.value)}>
+                  <option value="">Apply to account to selected transfers</option>
+                  {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                </select>
+              </label>
+              <label className="field-group">Transfer Fee (per row)
+                <input type="number" min="0" step="any" value={bulkValues.transfer_fee} onChange={(event) => setBulkValues((values) => ({ ...values, transfer_fee: event.target.value }))} />
+                <button type="button" className="secondary-button" disabled={bulkValues.transfer_fee === '' || !Number.isFinite(Number(bulkValues.transfer_fee)) || Number(bulkValues.transfer_fee) < 0} onClick={() => applyBulkField('transfer_fee', Number(bulkValues.transfer_fee))}>Apply fee to selected transfers</button>
+              </label>
+              <label className="field-group">Transfer Purpose
+                <input value={bulkValues.transfer_purpose} onChange={(event) => setBulkValues((values) => ({ ...values, transfer_purpose: event.target.value }))} />
+                <button type="button" className="secondary-button" disabled={!bulkValues.transfer_purpose} onClick={() => applyBulkField('transfer_purpose', bulkValues.transfer_purpose)}>Apply purpose to selected transfers</button>
+              </label>
+            </>}
+          </fieldset>
 
           <div className="statement-review-filters">
             <div className="statement-filter-tabs" role="tablist" aria-label="Filter imported rows">
