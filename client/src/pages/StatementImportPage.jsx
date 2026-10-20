@@ -1097,12 +1097,6 @@ export default function StatementImportPage() {
 
           <fieldset className="filter-panel" disabled={saving}>
             <legend className="sr-only">Apply values to selected rows</legend>
-            <select aria-label="Apply type to selected" onChange={(event) => applyBulkField('transaction_type', event.target.value)} value={bulkValues.transaction_type}>
-              <option value="">Apply type to selected</option>
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-              <option value="transfer">Transfer</option>
-            </select>
             <select onChange={(event) => applyBulkField('account_id', event.target.value)} value={bulkValues.account_id}>
               <option value="">Apply account to selected</option>
               {accounts.map((account) => (
@@ -1133,6 +1127,18 @@ export default function StatementImportPage() {
                 <option key={tag.id} value={tag.id}>{tag.name}</option>
               ))}
             </select>
+          </fieldset>
+
+          <fieldset className="filter-panel statement-bulk-type-panel" disabled={saving}>
+            <legend className="sr-only">Apply type and transfer details to selected rows</legend>
+            <label className="field-group statement-bulk-type">Type
+              <select onChange={(event) => applyBulkField('transaction_type', event.target.value)} value={bulkValues.transaction_type}>
+                <option value="">Apply type to selected</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+                <option value="transfer">Transfer</option>
+              </select>
+            </label>
             {selectedRows.some((row) => row.transaction_type === 'transfer') && <>
               <label className="field-group">From Account
                 <select value={bulkValues.from_account_id} onChange={(event) => applyBulkField('from_account_id', event.target.value)}>

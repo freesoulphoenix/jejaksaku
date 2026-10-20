@@ -32,6 +32,18 @@ textarea:focus {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.statement-bulk-type-panel {
+  align-items: start;
+}
+
+.statement-bulk-type-panel .field-group {
+  align-content: start;
+}
+
+.statement-bulk-type {
+  grid-column: 1 / -1;
+}
+
 .field-group {
   display: grid;
   gap: 8px;
