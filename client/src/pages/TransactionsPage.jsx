@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import AddTransactionModal from '../components/AddTransactionModal.jsx';
 import BulkEditActivitiesModal from '../components/BulkEditActivitiesModal.jsx';
@@ -121,6 +121,15 @@ export default function TransactionsPage({ onNavigate }) {
   const [duplicateReview, setDuplicateReview] = useState(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const searchInputRef = useRef(null);
+  const editReturnPosition = useRef(null);
+
+  useLayoutEffect(() => {
+    if (isModalOpen || !editReturnPosition.current) return;
+    const { x, y, trigger } = editReturnPosition.current;
+    editReturnPosition.current = null;
+    trigger?.isConnected && trigger.focus({ preventScroll: true });
+    window.scrollTo({ left: x, top: y, behavior: 'instant' });
+  }, [isModalOpen]);
   const duplicateCheckActivation = useRef(false);
 
   const loadPageData = useCallback(async function loadPageData(background = false) {
@@ -306,6 +315,11 @@ export default function TransactionsPage({ onNavigate }) {
   }
 
   function openEditModal(transaction) {
+    editReturnPosition.current = {
+      x: window.scrollX,
+      y: window.scrollY,
+      trigger: document.activeElement
+    };
     setEditingTransaction(transaction);
     setPendingDeleteId('');
     setIsModalOpen(true);
@@ -332,7 +346,8 @@ export default function TransactionsPage({ onNavigate }) {
       }
     }
 
-    await loadPageData();
+    // Keep the list mounted so saving cannot collapse the page and reset scroll.
+    await loadPageData(true);
   }
 
   async function handleDelete(transaction) {
@@ -384,7 +399,7 @@ export default function TransactionsPage({ onNavigate }) {
     await updateTransactions(selectedTransactions, changes);
     setSelectedIds([]);
     setSelectionMode(false);
-    await loadPageData();
+    await loadPageData(true);
   }
 
   async function handleUnlinkStatement(transaction) {
